@@ -1,0 +1,109 @@
+{
+    "project_name": "P39",
+
+    "factory": {
+        "factory_name": "PVT1",
+        "mes_ip": "192.168.1.100",
+        "mes_port": 8080,
+        "mes_enable" : false
+    },
+
+    "station":{
+        "user_no": "Q2503231",
+        "order_no": "20001520",
+        "line_name": "FT-0718",
+        "station_name": "SMT-FT",
+        "fixture_no": "51516"
+    },
+
+    "connect_serial": {
+        "com":"COM1",  
+        "baud_rate": 9600,
+        "stop_bits":  1,
+        "parity_bits": 1
+    },
+
+    "debug_serial": {
+        "com":"COM1",  
+        "baud_rate": 9600,
+        "stop_bits":  1,
+        "parity_bits": 1
+    },
+
+    "env_items":[
+        {   "descr":"系统版本", "value":"P39_FACTORY_4G_HW1.0_202511201718_D", "type": "string", "sn": 0, "en_enum": false   },
+        {   "descr":"测试超时时间", "value":60, "type": "int", "en_enum": false, "sn": 1    },
+        {   "descr":"GPS卫星数量", "value":6, "type": "int", "en_enum": false, "sn": 2    },
+        {   "descr":"GPS信号阈值", "value":100, "type": "int", "en_enum": false, "sn": 3    },
+        {   "descr":"卡1-4G信号强度", "value":-200, "type": "int", "en_enum": false, "sn": 4    },
+        {   "descr":"卡2-4G信号强度", "value":-200, "type": "int", "en_enum": false, "sn": 5    },
+        {   "descr":"休眠电流阈值", "value":13, "type": "int", "en_enum": false, "sn": 6    },
+        {   "descr":"峰值电流阈值", "value":4000, "type": "int", "en_enum": false, "sn": 7    },
+        {   "descr":"电压阈值", "value":5, "type": "int", "en_enum": false, "sn": 8    },
+        {   "descr":"休眠超时时间", "value":120, "type": "int", "en_enum": false, "sn": 9    },
+        {   "descr":"连接电脑IP", "value":20, "type": "int", "en_enum": false, "sn": 10    },
+        {   "descr":"自动复测次数", "value":2, "type": "int", "en_enum": false, "sn": 11    },
+        {   "descr":"WIFI名称", "value":"123456", "type": "string", "en_enum": false, "sn": 12    },
+        {   "descr":"WIFI强度阈值", "value":-60, "type": "int", "en_enum": false, "sn": 13    },
+        {   "descr":"蓝牙名称", "value":"hcsbt3", "type": "string", "en_enum": false, "sn": 14    },
+        {   "descr":"蓝牙Rssi阈值", "value":-110, "type": "int", "en_enum": false, "sn": 15    }
+    ],
+
+    "test_items": [
+        { "code": 1, "sn": 0, "value": true, "descr": "开机" },
+        { "code": 2, "sn": 1, "value": true, "descr": "休眠" },
+        { "code": 3, "sn": 2, "value": true, "descr": "峰值电流" },
+        { "code": 4, "sn": 3, "value": true, "descr": "系统版本" },
+        { "code": 5, "sn": 4, "value": true, "descr": "TF卡" },
+        { "code": 6, "sn": 5, "value": true, "descr": "SIM卡" },
+        { "code": 7, "sn": 6, "value": true, "descr": "SIM卡-2" },
+        { "code": 8, "sn": 7, "value": true, "descr": "移动网络信号" },
+        { "code": 9, "sn": 8, "value": true, "descr": "SIM-2移动网络信号" },
+        { "code": 10, "sn": 9, "value": true, "descr": "GPS" },
+        { "code": 11, "sn": 10, "value": true, "descr": "WIFI" },
+        { "code": 12, "sn": 11, "value": true, "descr": "蓝牙" },
+        { "code": 13, "sn": 12, "value": true, "descr": "USB2.0" },
+        { "code": 14, "sn": 13, "value": true, "descr": "USB3.0" },
+        { "code": 15, "sn": 14, "value": true, "descr": "CAMERA_0" },
+        { "code": 16, "sn": 15, "value": true, "descr": "CAMERA_1" },
+        { "code": 17, "sn": 16, "value": true, "descr": "CAMERA_2" },
+        { "code": 18, "sn": 17, "value": true, "descr": "CAMERA_3" },
+        { "code": 19, "sn": 18, "value": true, "descr": "CAMERA_4" },
+        { "code": 20, "sn": 19, "value": true, "descr": "CAMERA_5" },
+        { "code": 21, "sn": 20, "value": true, "descr": "GPIO_044" },
+        { "code": 22, "sn": 21, "value": true, "descr": "GPIO_078" },
+        { "code": 23, "sn": 22, "value": true, "descr": "GPIO_081" },
+        { "code": 24, "sn": 23, "value": true, "descr": "GPIO_083" },
+        { "code": 25, "sn": 24, "value": true, "descr": "GPIO_220" },
+        { "code": 26, "sn": 25, "value": true, "descr": "GPIO_223" },
+        { "code": 27, "sn": 26, "value": true, "descr": "GPIO_227" },
+        { "code": 28, "sn": 27, "value": true, "descr": "GPIO_231" },
+        { "code": 29, "sn": 28, "value": true, "descr": "I2C_3" },
+        { "code": 30, "sn": 29, "value": true, "descr": "I2C_6" },
+        { "code": 31, "sn": 30, "value": true, "descr": "I2C_12" },
+        { "code": 32, "sn": 31, "value": true, "descr": "AUD_I2C" },
+        { "code": 33, "sn": 32, "value": true, "descr": "SCP_I2C5" },
+        { "code": 34, "sn": 33, "value": true, "descr": "SPI0.0" },
+        { "code": 35, "sn": 34, "value": true, "descr": "SPI1.0" },
+        { "code": 36, "sn": 35, "value": true, "descr": "SPI2.0" },
+        { "code": 37, "sn": 36, "value": true, "descr": "SPI3.0" },
+        { "code": 38, "sn": 37, "value": true, "descr": "SPI4.0" },
+        { "code": 39, "sn": 38, "value": true, "descr": "SPI7.0" },
+        { "code": 40, "sn": 39, "value": true, "descr": "I2S_0_1" },
+        { "code": 41, "sn": 40, "value": true, "descr": "I2S_2_6" },
+        { "code": 42, "sn": 41, "value": true, "descr": "I2S_2_FM" },
+        { "code": 43, "sn": 42, "value": true, "descr": "TDM" },
+        { "code": 44, "sn": 43, "value": true, "descr": "PWM_1" },
+        { "code": 45, "sn": 44, "value": true, "descr": "PWM_2" },
+        { "code": 46, "sn": 45, "value": true, "descr": "UART_DEBUG" },
+        { "code": 47, "sn": 46, "value": true, "descr": "UART_FPGA" },
+        { "code": 48, "sn": 47, "value": true, "descr": "DP" },
+        { "code": 49, "sn": 48, "value": true, "descr": "DSI_1" },
+        { "code": 50, "sn": 49, "value": true, "descr": "DSI_0" },
+        { "code": 51, "sn": 50, "value": true, "descr": "GPS_SPECIFY_L1" },
+        { "code": 52, "sn": 51, "value": true, "descr": "GPS_SPECIFY_L5" },
+        { "code": 53, "sn": 52, "value": true, "descr": "PCIE" },
+        { "code": 54, "sn": 53, "value": true, "descr": "RPMB烧录状态" },
+        { "code": 55, "sn": 54, "value": true, "descr": "UFS健壮性检测" }
+    ]
+}
