@@ -1,15 +1,20 @@
 //
 // Created by LEGION on 2026/4/18.
 //
-#include <QApplication>
-#include <QPushButton>
-#include "home.h"
+#include <QGuiApplication>
+#include <QQmlApplicationEngine>
 
 int main(int argc, char* argv[]) {
-    QApplication a(argc, argv);
+    QGuiApplication app(argc, argv);
 
-    UiHome* home = new UiHome();
-    home->resize(800, 500);
-    home->show();
-    return QApplication::exec();
+    QQmlApplicationEngine engine;
+    QObject::connect(
+        &engine,
+        &QQmlApplicationEngine::objectCreationFailed,
+        &app,
+        []() { QCoreApplication::exit(-1); },
+        Qt::QueuedConnection);
+    engine.loadFromModule("FactoryTestHmi", "Home");
+
+    return QCoreApplication::exec();
 }

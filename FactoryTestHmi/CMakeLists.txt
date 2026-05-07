@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 4.2)
+cmake_minimum_required(VERSION 3.16)
 project(FactoryTestModule)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -13,7 +13,13 @@ find_package(Qt6 COMPONENTS
         Gui
         Widgets
         SerialPort
-        REQUIRED)
+        Qml
+        Quick
+        REQUIRED
+)
+
+qt_policy(SET QTP0001 NEW)
+qt_policy(SET QTP0004 NEW)
 
 file(GLOB SRC_LIST
         "process/*.cpp"
@@ -23,9 +29,9 @@ file(GLOB SRC_LIST
         "hmi/common/*.hpp"
 )
 
-
 add_executable(FactoryTestModule WIN32 ${SRC_LIST}
-        common/qserial_channel.hpp)
+        common/qserial_channel.hpp
+)
 
 include_directories(FactoryTestModule
         "common"
@@ -35,38 +41,44 @@ include_directories(FactoryTestModule
         "process"
 )
 
-target_link_libraries(FactoryTestModule
+target_link_libraries(FactoryTestModule PRIVATE
         Qt::Core
         Qt::Gui
         Qt::Widgets
         Qt::SerialPort
+        Qt::Qml
+        Qt::Quick
 )
 
-if (WIN32 AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
-    set(DEBUG_SUFFIX)
-    if (MSVC AND CMAKE_BUILD_TYPE MATCHES "Debug")
-        set(DEBUG_SUFFIX "d")
-    endif ()
-    set(QT_INSTALL_PATH "${CMAKE_PREFIX_PATH}")
-    if (NOT EXISTS "${QT_INSTALL_PATH}/bin")
-        set(QT_INSTALL_PATH "${QT_INSTALL_PATH}/..")
-        if (NOT EXISTS "${QT_INSTALL_PATH}/bin")
-            set(QT_INSTALL_PATH "${QT_INSTALL_PATH}/..")
-        endif ()
-    endif ()
-    if (EXISTS "${QT_INSTALL_PATH}/plugins/platforms/qwindows${DEBUG_SUFFIX}.dll")
-        add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-                COMMAND ${CMAKE_COMMAND} -E make_directory
-                "$<TARGET_FILE_DIR:${PROJECT_NAME}>/plugins/platforms/")
-        add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-                COMMAND ${CMAKE_COMMAND} -E copy
-                "${QT_INSTALL_PATH}/plugins/platforms/qwindows${DEBUG_SUFFIX}.dll"
-                "$<TARGET_FILE_DIR:${PROJECT_NAME}>/plugins/platforms/")
-    endif ()
-    foreach (QT_LIB Core Gui Widgets)
-        add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-                COMMAND ${CMAKE_COMMAND} -E copy
-                "${QT_INSTALL_PATH}/bin/Qt6${QT_LIB}${DEBUG_SUFFIX}.dll"
-                "$<TARGET_FILE_DIR:${PROJECT_NAME}>")
-    endforeach (QT_LIB)
-endif ()
+qt_add_qml_module(FactoryTestModule
+        URI FactoryTestHmi
+        QML_FILES
+        hmi/Home.qml
+        hmi/Head.qml
+        hmi/UiTestPanel.qml
+        hmi/UiFactoryTest.qml
+        hmi/UiTestCard.qml
+)
+
+if(WIN32)
+    # 1. 先获取 Qt 的 bin 目录
+    get_target_property(QT_QMAKE_EXECUTABLE Qt6::qmake IMPORTED_LOCATION)
+    cmake_path(GET QT_QMAKE_EXECUTABLE PARENT_PATH QT_BIN_DIR)
+
+    # 2. 查找 windeployqt
+    find_program(WINDEPLOYQT_EXECUTABLE windeployqt HINTS "${QT_BIN_DIR}")
+    if(NOT WINDEPLOYQT_EXECUTABLE)
+        message(FATAL_ERROR "windeployqt not found at ${QT_BIN_DIR}")
+    endif()
+
+    # 3. 构建后自动运行 windeployqt
+    add_custom_command(TARGET FactoryTestModule POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E echo "Running windeployqt for FactoryTestModule..."
+            COMMAND "${WINDEPLOYQT_EXECUTABLE}"
+            "$<TARGET_FILE:FactoryTestModule>"
+            --qmldir "${CMAKE_CURRENT_SOURCE_DIR}/hmi"
+            --no-translations
+            --no-compiler-runtime
+            COMMENT "Deploying Qt runtime dependencies..."
+    )
+endif()
