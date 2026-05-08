@@ -13,16 +13,6 @@ Rectangle {
         antialiasing: true
     }
 
-    // Rectangle {
-    //     anchors.top: testCard.bottom
-    //     anchors.topMargin: 16
-    //     width: 480
-    //     height: 160
-    //     color: "#0f172a"
-    //     radius: 10
-    //     antialiasing: true
-    // }
-    // ---------- 串口通讯设置卡片 ----------
     Rectangle {
         id: serialCard
         anchors.top: testCard.bottom
@@ -51,10 +41,10 @@ Rectangle {
             }
             spacing: 8
 
-            //工厂配置
+            // 工厂配置
             RowLayout {
-                Layout.leftMargin: 25   // 调整这里的数值来设定左边距
-                Layout.topMargin: 8     // 调整这里的数值来设定上边距
+                Layout.leftMargin: 25
+                Layout.topMargin: 8
                 Layout.fillWidth: true; spacing: 8
                 Canvas {
                     Layout.preferredWidth: 20
@@ -62,52 +52,24 @@ Rectangle {
 
                     onPaint: {
                         var ctx = getContext("2d")
-
-                        // ── 深色圆角背景 (暖色基底) ──────────
                         ctx.beginPath()
-                        ctx.moveTo(3, 0.5)
-                        ctx.lineTo(15, 0.5)
+                        ctx.moveTo(3, 0.5); ctx.lineTo(15, 0.5)
                         ctx.arcTo(17.5, 0.5, 17.5, 3, 2.5)
-                        ctx.lineTo(17.5, 15)
-                        ctx.arcTo(17.5, 17.5, 15, 17.5, 2.5)
-                        ctx.lineTo(3, 17.5)
-                        ctx.arcTo(0.5, 17.5, 0.5, 15, 2.5)
-                        ctx.lineTo(0.5, 3)
-                        ctx.arcTo(0.5, 0.5, 3, 0.5, 2.5)
+                        ctx.lineTo(17.5, 15); ctx.arcTo(17.5, 17.5, 15, 17.5, 2.5)
+                        ctx.lineTo(3, 17.5); ctx.arcTo(0.5, 17.5, 0.5, 15, 2.5)
+                        ctx.lineTo(0.5, 3); ctx.arcTo(0.5, 0.5, 3, 0.5, 2.5)
                         ctx.closePath()
-
-                        ctx.fillStyle = "#7c2d12"           // 深橙色背景 (orange-900)
+                        ctx.fillStyle = "#7c2d12"
                         ctx.fill()
-                        ctx.strokeStyle = "#9a3412"         // 稍亮的橙色边框 (orange-800)
+                        ctx.strokeStyle = "#9a3412"
                         ctx.lineWidth = 1
                         ctx.stroke()
 
-                        // ── 2×2 橙色圆点矩阵 (对角线渐变) ──
-                        // 左上圆点 (最亮)
-                        ctx.beginPath()
-                        ctx.arc(6, 5.8, 1.8, 0, Math.PI * 2)
-                        ctx.fillStyle = "#fed7aa"           // 浅橙 (orange-200)
-                        ctx.fill()
-
-                        // 右上圆点 (中亮)
-                        ctx.beginPath()
-                        ctx.arc(12, 5.8, 1.8, 0, Math.PI * 2)
-                        ctx.fillStyle = "#fb923c"           // 中橙 (orange-400)
-                        ctx.fill()
-
-                        // 左下圆点 (中深)
-                        ctx.beginPath()
-                        ctx.arc(6, 11.8, 1.8, 0, Math.PI * 2)
-                        ctx.fillStyle = "#f97316"           // 标准橙 (orange-500)
-                        ctx.fill()
-
-                        // 右下圆点 (最深)
-                        ctx.beginPath()
-                        ctx.arc(12, 11.8, 1.8, 0, Math.PI * 2)
-                        ctx.fillStyle = "#ea580c"           // 深橙 (orange-600)
-                        ctx.fill()
+                        ctx.beginPath(); ctx.arc(6, 5.8, 1.8, 0, Math.PI*2); ctx.fillStyle = "#fed7aa"; ctx.fill()
+                        ctx.beginPath(); ctx.arc(12, 5.8, 1.8, 0, Math.PI*2); ctx.fillStyle = "#fb923c"; ctx.fill()
+                        ctx.beginPath(); ctx.arc(6, 11.8, 1.8, 0, Math.PI*2); ctx.fillStyle = "#f97316"; ctx.fill()
+                        ctx.beginPath(); ctx.arc(12, 11.8, 1.8, 0, Math.PI*2); ctx.fillStyle = "#ea580c"; ctx.fill()
                     }
-
                     Component.onCompleted: requestPaint()
                 }
                 Text { text: "所属项目: "; font.pixelSize: 19; color: "#94a3b8" }
@@ -115,151 +77,204 @@ Rectangle {
             }
 
             Rectangle {
-                Layout.fillWidth: true
-                height: 1
-                color: "#1e293b"
+                Layout.fillWidth: true; height: 1; color: "#1e293b"
             }
 
+            // ===== 串口配置区 (已调整好) =====
             // ===== 串口配置区 =====
             ColumnLayout {
-                Layout.fillWidth: true
-                spacing: 10
+                Layout.fillWidth: true; spacing: 25
 
-                // COM 口
+                // --- COM 口 (重新绘制，更饱满) ---
                 RowLayout {
-                    Layout.leftMargin: 30   // 调整这里的数值来设定左边距
-                    Layout.fillWidth: true;
-                    spacing: 8
+                    Layout.leftMargin: 80
+                    Layout.fillWidth: true; spacing: 8
                     Canvas {
                         Layout.preferredWidth: 18; Layout.preferredHeight: 18
                         onPaint: {
                             var ctx = getContext("2d")
-                            ctx.fillStyle = "#60a5fa"
-                            ctx.fillRect(2,4,14,3); ctx.fillRect(2,9,14,3)
-                            ctx.fillRect(5,1,3,14); ctx.fillRect(11,1,3,14)
-                            ctx.fillStyle = "#0f172a"; ctx.fillRect(7,5,4,6)
-                        }
-                        Component.onCompleted: requestPaint()
-                    }
-
-                    Text { text: "COM口: "; font.pixelSize: 15; color: "#94a3b8" }
-                    Text { text: "PVT01"; font.pixelSize: 18; color: "#e2e8f0" }
-                }
-
-                // 波特率
-                RowLayout {
-                    Layout.leftMargin: 30   // 调整这里的数值来设定左边距
-                    Layout.fillWidth: true; spacing: 8
-                    Canvas {
-                        width: 20
-                        height: 20
-                        onPaint: {
-                            var ctx = getContext("2d")
-                            ctx.clearRect(0, 0, width, height)
-
-                            var cx = width / 2, cy = height / 2
-                            var r = width * 0.38       // 外弧半径
-                            var thickness = width * 0.15
-
-                            ctx.strokeStyle = "#f59e0b"
+                            ctx.clearRect(0,0,18,18)
+                            ctx.strokeStyle = "#60a5fa"
                             ctx.lineWidth = 1.5
                             ctx.lineCap = "round"
                             ctx.lineJoin = "round"
-                            ctx.fillStyle = "#f59e0b"
-
-                            // 1. 外弧（半圆环形）
+                            // 外框 (D-sub 形状简化)
                             ctx.beginPath()
-                            ctx.arc(cx, cy, r, Math.PI, 2 * Math.PI, false)
+                            ctx.moveTo(3, 2)
+                            ctx.lineTo(15, 2)
+                            ctx.arcTo(16, 2, 16, 3, 1)
+                            ctx.lineTo(16, 11)
+                            ctx.arcTo(16, 16, 13, 16, 3)
+                            ctx.lineTo(5, 16)
+                            ctx.arcTo(2, 16, 2, 13, 3)
+                            ctx.lineTo(2, 3)
+                            ctx.arcTo(2, 2, 3, 2, 1)
+                            ctx.closePath()
                             ctx.stroke()
+                            // 上排针脚 (2个)
+                            ctx.fillStyle = "#60a5fa"
+                            ctx.fillRect(5, 5.5, 3, 2.5)
+                            ctx.fillRect(10, 5.5, 3, 2.5)
+                            // 下排针脚 (2个)
+                            ctx.fillRect(5, 10.5, 3, 2.5)
+                            ctx.fillRect(10, 10.5, 3, 2.5)
+                        }
+                        Component.onCompleted: requestPaint()
+                    }
+                    Text { text: "   COM口:          "; font.pixelSize: 15; color: "#94a3b8" }
+                    Text { text: "PVT01"; font.pixelSize: 18; color: "#e2e8f0" }
+                }
 
-                            // 2. 内刻度短线（左侧和右侧各一条）
+                // --- 波特率 (原指针风格，稍微放大占满画布) ---
+                RowLayout {
+                    Layout.leftMargin: 80
+                    Layout.fillWidth: true; spacing: 8
+                    Canvas {
+                        width: 20; height: 20
+                        onPaint: {
+                            var ctx = getContext("2d")
+                            ctx.clearRect(0,0,width,height)
+                            var cx=10, cy=10, r=7.5
+                            ctx.strokeStyle="#f59e0b"; ctx.lineWidth=1.8; ctx.lineCap="round"
+                            ctx.fillStyle="#f59e0b"
+                            // 外弧（半圆）
                             ctx.beginPath()
-                            // 左侧刻度
-                            ctx.moveTo(cx - r + 3, cy - 1)
-                            ctx.lineTo(cx - r + 3, cy + 1)
-                            // 右侧刻度
-                            ctx.moveTo(cx + r - 3, cy - 1)
-                            ctx.lineTo(cx + r - 3, cy + 1)
+                            ctx.arc(cx, cy, r, Math.PI, 2*Math.PI, false)
                             ctx.stroke()
-
-                            // 3. 底部水平直线
+                            // 左右刻度
                             ctx.beginPath()
-                            ctx.moveTo(cx - r + 1, cy)
-                            ctx.lineTo(cx + r - 1, cy)
+                            ctx.moveTo(cx - r + 1.5, cy - 1.5)
+                            ctx.lineTo(cx - r + 1.5, cy + 1.5)
+                            ctx.moveTo(cx + r - 1.5, cy - 1.5)
+                            ctx.lineTo(cx + r - 1.5, cy + 1.5)
                             ctx.stroke()
-
-                            // 4. 中心指针（三角形）
+                            // 底部水平线
                             ctx.beginPath()
-                            ctx.moveTo(cx, cy)               // 圆心
-                            ctx.lineTo(cx - 3, cy - r * 0.7) // 左上
-                            ctx.lineTo(cx + 3, cy - r * 0.7) // 右上
+                            ctx.moveTo(cx - r, cy)
+                            ctx.lineTo(cx + r, cy)
+                            ctx.stroke()
+                            // 中心指针
+                            ctx.beginPath()
+                            ctx.moveTo(cx, cy)
+                            ctx.lineTo(cx-3.5, cy - r*0.7)
+                            ctx.lineTo(cx+3.5, cy - r*0.7)
                             ctx.closePath()
                             ctx.fill()
                         }
                         Component.onCompleted: requestPaint()
                     }
-                    Text { text: "波特率: "; font.pixelSize: 15; color: "#94a3b8" }
-                    Text { text: " 912600"; font.pixelSize:18; color: "#e2e8f0" }
-                }
-            }
-
-            // 分隔线
-            Rectangle { Layout.fillWidth: true; height: 1; color: "#1e293b" }
-
-            // ===== MES 配置区 =====
-            ColumnLayout {
-                Layout.fillWidth: true; spacing: 10
-
-                // MES IP
-                RowLayout {
-                    Layout.fillWidth: true; spacing: 8
-                    Text { text: "MES IP"; font.pixelSize: 13; color: "#94a3b8" }
-                    TextField {
-                        id: mesIpInput; Layout.fillWidth: true; font.pixelSize: 14; color: "#e2e8f0"
-                        placeholderText: "192.168.x.x"; placeholderTextColor: "#475569"
-                        background: Item {}
-                        Rectangle {
-                            anchors.left: parent.left; anchors.right: parent.right
-                            anchors.bottom: parent.bottom; height: 1
-                            color: parent.activeFocus ? "#60a5fa" : "#475569"
-                        }
-                    }
+                    Text { text: "    波特率:          "; font.pixelSize: 15; color: "#94a3b8" }
+                    Text { text: "912600"; font.pixelSize:18; color: "#e2e8f0" }
                 }
 
-                // MES 端口
+                // --- MES IP (更清晰的地球，加大网格) ---
                 RowLayout {
+                    Layout.leftMargin: 80
                     Layout.fillWidth: true; spacing: 8
-                    Text { text: "MES端口"; font.pixelSize: 13; color: "#94a3b8" }
-                    TextField {
-                        id: mesPortInput; Layout.fillWidth: true; font.pixelSize: 14; color: "#e2e8f0"
-                        text: "8080"; background: Item{}
-                        Rectangle {
-                            anchors.left: parent.left; anchors.right: parent.right
-                            anchors.bottom: parent.bottom; height: 1
-                            color: parent.activeFocus ? "#60a5fa" : "#475569"
-                        }
-                    }
-                }
-
-                // MES 上传开关
-                RowLayout {
-                    Layout.fillWidth: true; spacing: 8
-                    // 云上传图标
                     Canvas {
                         Layout.preferredWidth: 18; Layout.preferredHeight: 18
                         onPaint: {
-                            var ctx = getContext("2d"); ctx.strokeStyle = mesToggle.checked ? "#22c55e" : "#475569"; ctx.lineWidth = 1.5
-                            ctx.beginPath(); ctx.moveTo(4,10); ctx.lineTo(9,5); ctx.lineTo(14,10); ctx.stroke()
-                            ctx.beginPath(); ctx.moveTo(6,10); ctx.lineTo(6,15); ctx.lineTo(12,15); ctx.lineTo(12,10); ctx.stroke()
-                            ctx.fillStyle = mesToggle.checked ? "#22c55e" : "#475569"
-                            ctx.beginPath(); ctx.arc(9,3,2,0,6.28); ctx.fill()
+                            var ctx = getContext("2d")
+                            ctx.clearRect(0,0,18,18)
+                            ctx.strokeStyle = "#8b5cf6"
+                            ctx.lineWidth = 1.6
+                            ctx.lineCap = "round"
+                            // 外圆
+                            ctx.beginPath(); ctx.arc(9,9,7.2,0,2*Math.PI); ctx.stroke()
+                            // 经线
+                            ctx.beginPath(); ctx.moveTo(9,2); ctx.lineTo(9,16); ctx.stroke()
+                            // 纬线（强化）
+                            ctx.beginPath(); ctx.moveTo(2.5,9); ctx.lineTo(15.5,9); ctx.stroke()
+                            // 两条斜线，更靠近边界
+                            ctx.beginPath(); ctx.moveTo(5,3); ctx.lineTo(13,15); ctx.stroke()
+                            ctx.beginPath(); ctx.moveTo(13,3); ctx.lineTo(5,15); ctx.stroke()
                         }
                         Component.onCompleted: requestPaint()
                     }
-                    Text { text: "MES上传"; font.pixelSize: 13; color: "#94a3b8" }
-                    Item { Layout.fillWidth: true } // 弹性空间
+                    Text { text: "    mes_ip:         "; font.pixelSize: 15; color: "#94a3b8" }
+                    Text { text: "192.168.60.168"; font.pixelSize: 18; color: "#e2e8f0" }
+                }
 
-                    // 开关按钮
+                // --- MES 端口 (插头更宽，占用更多画布) ---
+                // --- MES 端口 (加宽插头，两侧金属片贴边) ---
+                RowLayout {
+                    Layout.leftMargin: 80
+                    Layout.fillWidth: true; spacing: 8
+                    Canvas {
+                        Layout.preferredWidth: 18; Layout.preferredHeight: 18
+                        onPaint: {
+                            var ctx = getContext("2d")
+                            ctx.clearRect(0,0,18,18)
+                            ctx.strokeStyle = "#a78bfa"
+                            ctx.lineWidth = 1.5
+                            ctx.lineCap = "round"
+                            ctx.lineJoin = "round"
+                            // 两侧金属片直接贴到左右边缘
+                            ctx.beginPath(); ctx.moveTo(3,5); ctx.lineTo(3,12); ctx.stroke()
+                            ctx.beginPath(); ctx.moveTo(15,5); ctx.lineTo(15,12); ctx.stroke()
+                            // 底部连接线从边缘延伸
+                            ctx.beginPath(); ctx.moveTo(2,12); ctx.lineTo(7,14.5); ctx.lineTo(11,14.5); ctx.lineTo(16,12); ctx.stroke()
+                            // 顶部横条加长
+                            ctx.fillStyle = "#a78bfa"
+                            ctx.fillRect(5,2.5,8,2.8)
+                        }
+                        Component.onCompleted: requestPaint()
+                    }
+                    Text { text: "  mes端口:         "; font.pixelSize: 15; color: "#94a3b8" }
+                    Text { text: "8080"; font.pixelSize: 18; color: "#e2e8f0" }
+                }
+
+                // --- MES 上传 (云朵完全撑开，端点直达边缘) ---
+                RowLayout {
+                    Layout.leftMargin: 80
+                    Layout.fillWidth: true; spacing: 8
+                    Canvas {
+                        Layout.preferredWidth: 18; Layout.preferredHeight: 18
+                        onPaint: {
+                            var ctx = getContext("2d")
+                            ctx.clearRect(0,0,18,18)
+                            var active = mesToggle.checked
+                            ctx.strokeStyle = active ? "#22c55e" : "#475569"
+                            ctx.fillStyle = active ? "#22c55e" : "#475569"
+                            ctx.lineWidth = 1.5
+                            ctx.lineCap = "round"; ctx.lineJoin = "round"
+                            // 云轮廓：由左右两个拱形和一个宽阔的平底组成
+                            // 左侧弧线
+                            ctx.beginPath()
+                            ctx.moveTo(2, 12)
+                            ctx.arcTo(2, 6, 6, 6, 4)
+                            // 中间弧线
+                            ctx.arcTo(9, 2, 12, 6, 4)
+                            // 右侧弧线
+                            ctx.arcTo(16, 6, 16, 12, 4)
+                            ctx.lineTo(16, 12)
+                            ctx.stroke()
+                            // 底部平盘 (充满底部区域)
+                            ctx.beginPath()
+                            ctx.moveTo(4, 12)
+                            ctx.lineTo(4, 15)
+                            ctx.lineTo(14, 15)
+                            ctx.lineTo(14, 12)
+                            ctx.stroke()
+                            // 顶部圆点替换为小闪电/箭头 (表示上传)，更生动
+                            ctx.beginPath()
+                            ctx.moveTo(9, 3)
+                            ctx.lineTo(9, 7.5)
+                            ctx.moveTo(7, 5.5)
+                            ctx.lineTo(9, 8.5)
+                            ctx.lineTo(11, 5.5)
+                            ctx.stroke()
+                            ctx.fill()
+                        }
+                        Component.onCompleted: requestPaint()
+                    }
+                    Text { text: "  mes上传:         "; font.pixelSize: 15; color: "#94a3b8" }
+                    Text {
+                        text: mesToggle.checked ? "已开启" : "已关闭"
+                        font.pixelSize: 18; color: mesToggle.checked ? "#22c55e" : "#64748b"
+                    }
+
+                    // 你的切换按钮，完全保留
                     Rectangle {
                         id: mesToggle
                         property bool checked: true
@@ -274,15 +289,7 @@ Rectangle {
                             Behavior on x { NumberAnimation { duration: 150 } }
                         }
 
-                        MouseArea {
-                            anchors.fill: parent
-                            onClicked: mesToggle.checked = !mesToggle.checked
-                        }
-                    }
-
-                    Text {
-                        text: mesToggle.checked ? "已开启" : "已关闭"
-                        font.pixelSize: 12; color: mesToggle.checked ? "#22c55e" : "#64748b"
+                        MouseArea { anchors.fill: parent; onClicked: mesToggle.checked = !mesToggle.checked }
                     }
                 }
             }
