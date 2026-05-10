@@ -284,16 +284,28 @@ Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 52
                 radius: 8
-                color: "#1e293b"
-                border { color: "#334155"; width: 1 }
+                color: testSettingMouse.containsMouse ? "#0f2a1f" : "#1e293b"
+                border {
+                    color: testSettingMouse.containsMouse ? "#34d399" : "#334155"
+                    width: 1
+                }
                 RowLayout {
                     anchors.centerIn: parent
                     spacing: 8
-                    Text { text: "⚙"; font.pixelSize: 28; color: "#cbd5e1" }
-                    Text { text: "测试设置"; font.pixelSize: 18; color: "#cbd5e1" }
+                    Text {
+                        text: "⚙"; font.pixelSize: 28
+                        color: testSettingMouse.containsMouse ? "#34d399" : "#cbd5e1"
+                    }
+                    Text {
+                        text: "测试设置"; font.pixelSize: 18
+                        color: testSettingMouse.containsMouse ? "#34d399" : "#cbd5e1"
+                    }
                 }
                 MouseArea {
+                    id: testSettingMouse
                     anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
                     onClicked: console.log("测试设置")
                 }
             }
@@ -303,16 +315,28 @@ Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 52
                 radius: 8
-                color: "#1e293b"
-                border { color: "#334155"; width: 1 }
+                color: exportMouse.containsMouse ? "#0f2a1f" : "#1e293b"
+                border {
+                    color: exportMouse.containsMouse ? "#34d399" : "#334155"
+                    width: 1
+                }
                 RowLayout {
                     anchors.centerIn: parent
                     spacing: 8
-                    Text { text: "💾"; font.pixelSize: 26; color: "#cbd5e1" }
-                    Text { text: "导出结果"; font.pixelSize: 18; color: "#cbd5e1" }
+                    Text {
+                        text: "💾"; font.pixelSize: 26
+                        color: exportMouse.containsMouse ? "#34d399" : "#cbd5e1"
+                    }
+                    Text {
+                        text: "导出结果"; font.pixelSize: 18
+                        color: exportMouse.containsMouse ? "#34d399" : "#cbd5e1"
+                    }
                 }
                 MouseArea {
+                    id: exportMouse
                     anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
                     onClicked: console.log("导出结果")
                 }
             }

@@ -47,6 +47,7 @@ public:
     // 业务接口
     Q_INVOKABLE void loadTestItems(const QVector<TestItem> &items);
     Q_INVOKABLE void updateTestValues(int row, const QString &status,const QString &duration,const QString &message,const QString &result);
+    Q_INVOKABLE void regenerateData();
 private:
     QVector<TestItem> m_items;
 };

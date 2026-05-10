@@ -298,7 +298,7 @@ Rectangle {
 
     //站位信息
     Rectangle {
-        id:staionInfo
+        id: staionInfo
         anchors.top: testCard.top
         anchors.left: testCard.right
         anchors.leftMargin: 16
@@ -307,6 +307,138 @@ Rectangle {
         color: "#0f172a"
         radius: 10
         antialiasing: true
+
+        // 根据容器宽度实时计算每个 StationItem 的等分宽度
+        readonly property real itemWidth: (width - 40 - 4) / 5   // 40 = 左右边距, 4 = 4条分隔线总宽
+
+        // 内嵌组件：标签 + 值（内部内容居中）
+        component StationItem : Item {
+            property alias label: labelText.text
+            property alias value: valueText.text
+            property alias valueColor: valueText.color
+
+            Row {
+                spacing: 8
+                height: parent.height        // 高度与父容器一致
+                anchors.centerIn: parent     // 水平和垂直整体居中
+
+                Text {
+                    id: labelText
+                    height: parent.height                 // 高度撑满 Row
+                    verticalAlignment: Text.AlignVCenter  // 垂直居中
+                    font.family: "Inter, Segoe UI, sans-serif"
+                    font.pixelSize: 14
+                    color: "#64748b"
+                    renderType: Text.NativeRendering
+                }
+                Text {
+                    id: valueText
+                    height: parent.height
+                    verticalAlignment: Text.AlignVCenter
+                    font.family: "Inter, Segoe UI, sans-serif"
+                    font.pixelSize: 17
+                    font.weight: Font.Medium
+                    color: "#e2e8f0"
+                    renderType: Text.NativeRendering
+                }
+            }
+        }
+
+        // 工单号
+        StationItem {
+            id: item1
+            anchors.left: parent.left
+            anchors.leftMargin: 20
+            anchors.verticalCenter: parent.verticalCenter
+            width: staionInfo.itemWidth
+            height: parent.height
+            label: "工单号"
+            value: "WO-20260510-0038"
+        }
+
+        // 分隔线1
+        Rectangle {
+            anchors.left: item1.right
+            anchors.verticalCenter: parent.verticalCenter
+            width: 1
+            height: 28
+            color: "#1e293b"
+        }
+
+        // 工序名称
+        StationItem {
+            id: item2
+            anchors.left: item1.right
+            anchors.leftMargin: 1
+            anchors.verticalCenter: parent.verticalCenter
+            width: staionInfo.itemWidth
+            height: parent.height
+            label: "工序名称"
+            value: "功能测试"
+        }
+
+        // 分隔线2
+        Rectangle {
+            anchors.left: item2.right
+            anchors.verticalCenter: parent.verticalCenter
+            width: 1
+            height: 28
+            color: "#1e293b"
+        }
+
+        // 员工工号
+        StationItem {
+            id: item3
+            anchors.left: item2.right
+            anchors.leftMargin: 1
+            anchors.verticalCenter: parent.verticalCenter
+            width: staionInfo.itemWidth
+            height: parent.height
+            label: "员工工号"
+            value: "EMP8823"
+        }
+
+        // 分隔线3
+        Rectangle {
+            anchors.left: item3.right
+            anchors.verticalCenter: parent.verticalCenter
+            width: 1
+            height: 28
+            color: "#1e293b"
+        }
+
+        // 线别
+        StationItem {
+            id: item4
+            anchors.left: item3.right
+            anchors.leftMargin: 1
+            anchors.verticalCenter: parent.verticalCenter
+            width: staionInfo.itemWidth
+            height: parent.height
+            label: "线别"
+            value: "L3-2"
+        }
+
+        // 分隔线4
+        Rectangle {
+            anchors.left: item4.right
+            anchors.verticalCenter: parent.verticalCenter
+            width: 1
+            height: 28
+            color: "#1e293b"
+        }
+
+        // 夹具编号
+        StationItem {
+            id: item5
+            anchors.left: item4.right
+            anchors.leftMargin: 1
+            anchors.verticalCenter: parent.verticalCenter
+            width: staionInfo.itemWidth
+            height: parent.height
+            label: "夹具编号"
+            value: "FIX-017"
+        }
     }
 
     Rectangle {
@@ -321,7 +453,7 @@ Rectangle {
         radius: 10
         antialiasing: true
 
-        // 分隔线小组件（方便重复使用）
+        // StatItem 组件不变
         component StatItem : Column {
             spacing: 4
             property alias label: labelText.text
@@ -332,13 +464,14 @@ Rectangle {
                 id: labelText
                 font.family: "Inter, Segoe UI, sans-serif"
                 font.pixelSize: 15
-                color: "#64748b"       // text-slate-500
+                color: "#64748b"
+                renderType: Text.NativeRendering
                 anchors.horizontalCenter: parent.horizontalCenter
             }
             Text {
                 id: valueText
                 font.family: "Inter, Segoe UI, sans-serif"
-                font.pixelSize: 36
+                font.pixelSize: 32
                 font.weight: Font.Bold
                 font.letterSpacing: 1
                 color: "white"
@@ -346,40 +479,70 @@ Rectangle {
             }
         }
 
-        //统计框
         RowLayout {
-            Layout.preferredHeight: 60
-            Layout.fillWidth: true   // 填满宽度
-            spacing: 30
-            // 四个统计项
-            Item { Layout.fillWidth: true; implicitWidth: 0 }
-            StatItem {
-                label: "总量"
-                value: "1,250"
-                valueColor: "white"
-            }
-            Rectangle { width: 1; height: 40; color: "#1e293b"; anchors.verticalCenter: parent.verticalCenter }  // 分隔线
+            anchors.fill: parent
+            anchors.rightMargin: 16
+            spacing: 0
 
-            StatItem {
-                label: "成功"
-                value: "1,231"
-                valueColor: "#22c55e"      // green-500
-            }
-            Rectangle { width: 1; height: 40; color: "#1e293b"; anchors.verticalCenter: parent.verticalCenter }
+            // 左侧统计组
+            RowLayout {
+                spacing: 100
+                Layout.alignment: Qt.AlignVCenter
+                Layout.leftMargin: 100
 
-            StatItem {
-                label: "失败"
-                value: "19"
-                valueColor: "#ef4444"      // red-500
-            }
-            Rectangle { width: 1; height: 40; color: "#1e293b"; anchors.verticalCenter: parent.verticalCenter }
+                StatItem { label: "总量"; value: "1,250"; valueColor: "white" }
+                Rectangle { width: 1; height: 40; color: "#1e293b" }
 
-            StatItem {
-                label: "合格率"
-                value: "98.48%"
-                valueColor: "#60a5fa"      // blue-400
+                StatItem { label: "成功"; value: "1,231"; valueColor: "#22c55e" }
+                Rectangle { width: 1; height: 40; color: "#1e293b" }
+
+                StatItem { label: "失败"; value: "19"; valueColor: "#ef4444" }
+                Rectangle { width: 1; height: 40; color: "#1e293b" }
+
+                StatItem { label: "合格率"; value: "98.48%"; valueColor: "#60a5fa" }
             }
-            Item { Layout.fillWidth: true; implicitWidth: 0 }
+
+            // 弹性空间，把按钮推到最右侧
+            Item { Layout.fillWidth: true }
+
+            // ======= 全新风格复位按钮 =======
+            Rectangle {
+                implicitWidth: 140
+                implicitHeight: 52
+                radius: 8
+                color: resetMouse.containsMouse ? "#0f2a1f" : "#1e293b"
+                border {
+                    color: resetMouse.containsMouse ? "#34d399" : "#334155"
+                    width: 1
+                }
+
+                MouseArea {
+                    id: resetMouse
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: rtModel.regenerateData()
+                }
+
+                RowLayout {
+                    anchors.centerIn: parent
+                    spacing: 16
+                    Text {
+                        text: "\u21BA"          // ↺ 逆时针圆圈箭头，清晰且不突兀
+                        font.weight: Font.Bold
+                        font.pixelSize: 36
+                        color: resetMouse.containsMouse ? "#34d399" : "#cbd5e1"
+                        renderType: Text.NativeRendering
+                    }
+                    Text {
+                        text: "复位"
+                        font.pixelSize: 18
+                        font.weight: Font.Medium
+                        color: resetMouse.containsMouse ? "#34d399" : "#cbd5e1"
+                        renderType: Text.NativeRendering
+                    }
+                }
+            }
         }
     }
 
@@ -391,8 +554,9 @@ Rectangle {
         anchors.leftMargin: 16
         width: 1392
         height: 792
+        clip: true
         //color: "#0f172a"
-        //radius: 10
+        radius: 10
         antialiasing: true
 
         tableModel: rtModel

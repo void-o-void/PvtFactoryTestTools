@@ -11,7 +11,7 @@ Rectangle {
     border.width: 1
 
     property var tableModel
-    readonly property var colHeaders: ["名称", "测试码", "信息", "状态", "时长", "结果"]
+    readonly property var colHeaders: ["测试项", "测试码", "调试信息", "状态", "时长", "结果"]
 
     // 1:1:4:1:1:1，用整数避浮点累加误差
     function colW(total, idx) {
@@ -64,16 +64,32 @@ Rectangle {
             Layout.rightMargin: 16
             clip: true
             model: root.tableModel
-            rowSpacing: 0; columnSpacing: 0
+            rowSpacing: 0
+            columnSpacing: 0
             boundsBehavior: Flickable.StopAtBounds
 
             columnWidthProvider: function(c) { return colW(tv.width, c) }
             rowHeightProvider: function(r) { return 48 }
 
             ScrollBar.vertical: ScrollBar {
-                policy: ScrollBar.AsNeeded; width: 6
-                contentItem: Rectangle { implicitWidth: 6; radius: 3; color: "#334155" }
-                background: Rectangle { color: "transparent" }
+                id: vScrollBar
+                policy: ScrollBar.AsNeeded
+                width: 6
+
+                // ✅ 关键：强制窗口背景（轨道）为透明
+                palette.window: "transparent"
+
+                opacity: nearHover.hovered || vScrollBar.pressed ? 1 : 0
+                Behavior on opacity { NumberAnimation { duration: 200 } }
+
+                // 背景保持透明 Rectangle（只是多一层保险）
+                background: Rectangle {
+                    implicitWidth: 6
+                    color: "transparent"
+                    HoverHandler {
+                        id: nearHover
+                    }
+                }
             }
 
             delegate: Item {
@@ -134,6 +150,9 @@ Rectangle {
                     elide: Text.ElideRight
                     padding: 4
 
+                    // ✅ 关键修改 1：使用原生渲染，小字更清晰
+                    renderType: Text.NativeRendering
+
                     function columnText() {
                         switch (column) {
                             case 0: return model.name || ""
@@ -141,7 +160,7 @@ Rectangle {
                             case 2: return model.message || ""
                             case 4: return model.duration || ""
                             case 5: return model.result === "pass" ? "PASS" :
-                                           model.result === "fail" ? "FAIL" : "--"
+                                    model.result === "fail" ? "FAIL" : "--"
                         }
                         return ""
                     }
@@ -150,15 +169,24 @@ Rectangle {
                     function columnColor() {
                         if (column === 5)
                             return model.result === "pass" ? "#22c55e" :
-                                   model.result === "fail" ? "#ef4444" : "#64748b"
+                                    model.result === "fail" ? "#ef4444" : "#64748b"
                         if (column === 2) return "#94a3b8"
                         return "#e2e8f0"
                     }
                     color: columnColor()
 
+                    // ✅ 关键修改 2：为不同列指定合适的字体
+                    font.family: {
+                        if (column === 1 || column === 4)          // 测试码、时长（等宽）
+                            return "Consolas, monospace"
+                        if (column === 0 || column === 5)          // 名称、结果（清晰可读）
+                            return "system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+                        return ""                                  // 信息列保持默认
+                    }
+
                     font.pixelSize: column === 2 ? 13 : 14
-                    font.weight: column === 5 ? Font.Bold : Font.Normal
-                    font.family: (column === 1 || column === 4) ? "Consolas, monospace" : ""
+                    // ✅ 关键修改 3：结果列粗体改为 DemiBold，避免笔画太肿
+                    font.weight: column === 5 ? Font.DemiBold : Font.Normal
                 }
             }
         }

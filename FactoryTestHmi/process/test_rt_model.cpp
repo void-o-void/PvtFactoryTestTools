@@ -4,9 +4,8 @@
 #include "test_rt_model.hpp"
 #include <QRandomGenerator>
 
-RtModel::RtModel(QObject *parent) : QAbstractTableModel(parent)
+static void generateTestData(QVector<TestItem> &out)
 {
-    // 生成 100 条假数据
     static const char *names[] = {
         "电池电压测试", "屏幕亮度测试", "WiFi 连接测试", "蓝牙配对测试",
         "扬声器测试", "麦克风测试", "摄像头测试", "触控测试",
@@ -20,14 +19,17 @@ RtModel::RtModel(QObject *parent) : QAbstractTableModel(parent)
     };
     static const char *statusList[]  = { "waiting", "processing", "finished" };
     static const char *resultList[]  = { "pass", "fail" };
-    static const char *durationTmpl = "%1.%2s";
+    static const char *durationTmpl  = "%1.%2s";
+
+    out.clear();
+    out.reserve(100);
 
     for (int i = 0; i < 100; ++i) {
-        int st = (i < 85) ? 2           // 前 85 条已完成
-               : (i < 95) ? 1           // 中间 10 条进行中
-               : 0;                      // 最后 5 条等待中
+        int st = (i < 85) ? 2
+               : (i < 95) ? 1
+               : 0;
 
-        int res = st == 2 ? (i % 5 == 0 ? 1 : 0) : 0;  // 已完成中约 20% 失败
+        int res = (st == 2 && i % 5 == 0) ? 1 : 0;
         int sec  = QRandomGenerator::global()->bounded(1, 30);
         int ms   = QRandomGenerator::global()->bounded(10, 99);
 
@@ -42,8 +44,13 @@ RtModel::RtModel(QObject *parent) : QAbstractTableModel(parent)
                                   : "等待执行...";
         item.result   = (st == 2) ? resultList[res] : "--";
 
-        m_items.append(item);
+        out.append(item);
     }
+}
+
+RtModel::RtModel(QObject *parent) : QAbstractTableModel(parent)
+{
+    generateTestData(m_items);
 }
 
 int RtModel::rowCount(const QModelIndex &parent) const
@@ -120,4 +127,11 @@ void RtModel::updateTestValues(int row, const QString &status, const QString &du
     QModelIndex topLeft = createIndex(row, 2);
     QModelIndex bottomRight = createIndex(row, 5);
     emit dataChanged(topLeft, bottomRight,{StatusRole, DurationRole, MessageRole, ResultRole});
+}
+
+void RtModel::regenerateData()
+{
+    beginResetModel();
+    generateTestData(m_items);
+    endResetModel();
 }
