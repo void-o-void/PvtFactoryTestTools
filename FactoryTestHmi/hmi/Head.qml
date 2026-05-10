@@ -96,62 +96,8 @@ Rectangle {
         anchors.rightMargin: 32
         anchors.verticalCenter: parent.verticalCenter
         spacing: 32
-
-        // 分隔线小组件（方便重复使用）
-        component StatItem : Column {
-            spacing: 4
-            property alias label: labelText.text
-            property alias value: valueText.text
-            property alias valueColor: valueText.color
-
-            Text {
-                id: labelText
-                font.family: "Inter, Segoe UI, sans-serif"
-                font.pixelSize: 12
-                color: "#64748b"       // text-slate-500
-                anchors.horizontalCenter: parent.horizontalCenter
-            }
-            Text {
-                id: valueText
-                font.family: "Inter, Segoe UI, sans-serif"
-                font.pixelSize: 24
-                font.weight: Font.Bold
-                font.letterSpacing: 1
-                color: "white"
-                anchors.horizontalCenter: parent.horizontalCenter
-            }
-        }
-
-        // 四个统计项
-        StatItem {
-            label: "测试总数 (Total)"
-            value: "1,250"
-            valueColor: "white"
-        }
-        Rectangle { width: 1; height: 40; color: "#1e293b"; anchors.verticalCenter: parent.verticalCenter }  // 分隔线
-
-        StatItem {
-            label: "合格数 (Pass)"
-            value: "1,231"
-            valueColor: "#22c55e"      // green-500
-        }
-        Rectangle { width: 1; height: 40; color: "#1e293b"; anchors.verticalCenter: parent.verticalCenter }
-
-        StatItem {
-            label: "不合格数 (Fail)"
-            value: "19"
-            valueColor: "#ef4444"      // red-500
-        }
-        Rectangle { width: 1; height: 40; color: "#1e293b"; anchors.verticalCenter: parent.verticalCenter }
-
-        StatItem {
-            label: "合格率 (Rate)"
-            value: "98.48%"
-            valueColor: "#60a5fa"      // blue-400
-        }
-
-        // 时间与状态区域
-        Rectangle { width: 1; height: 50; color: "#1e293b"; anchors.verticalCenter: parent.verticalCenter }
+        // // 时间与状态区域
+        // Rectangle { width: 1; height: 50; color: "#1e293b"; anchors.verticalCenter: parent.verticalCenter }
 
         Column {
             spacing: 6

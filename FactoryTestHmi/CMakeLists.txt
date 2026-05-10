@@ -29,9 +29,7 @@ file(GLOB SRC_LIST
         "hmi/common/*.hpp"
 )
 
-add_executable(FactoryTestModule WIN32 ${SRC_LIST}
-        common/qserial_channel.hpp
-)
+add_executable(FactoryTestModule WIN32 ${SRC_LIST})
 
 include_directories(FactoryTestModule
         "common"
@@ -58,6 +56,7 @@ qt_add_qml_module(FactoryTestModule
         hmi/UiTestPanel.qml
         hmi/UiFactoryTest.qml
         hmi/UiTestCard.qml
+        hmi/UiFactoryTestRtTable.qml
 )
 
 if(WIN32)

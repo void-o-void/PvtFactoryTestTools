@@ -96,7 +96,17 @@ typedef struct {
     short data_len;
 } MessageEntity;
 
-#define PWM_DELAY_US 1000000 // 1S超时
-#define CMD_DELAY_US 1000000 // 1s超时
+#define DECLARE_SINGLETON(ClassName) \
+    public: \
+    static ClassName* instance(){ \
+        static ClassName instance; \
+        return &instance; \
+    }; \
+    private: \
+    ClassName(const ClassName&) = delete; \
+    ClassName& operator=(const ClassName&) = delete; \
+    ClassName(ClassName&&) = delete; \
+    ClassName& operator=(ClassName&&) = delete;
+
 
 #endif //FACTORY_TEST_CPP_COMM_H

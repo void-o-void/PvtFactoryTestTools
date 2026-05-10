@@ -42,5 +42,4 @@ Window {
         anchors.leftMargin: 16
         width: parent.width - 32
     }
-
 }

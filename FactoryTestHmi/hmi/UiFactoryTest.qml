@@ -296,15 +296,105 @@ Rectangle {
         }
     }
 
-
+    //站位信息
     Rectangle {
+        id:staionInfo
         anchors.top: testCard.top
         anchors.left: testCard.right
         anchors.leftMargin: 16
         width: 1392
-        height: 936
+        height: 50
         color: "#0f172a"
         radius: 10
         antialiasing: true
+    }
+
+    Rectangle {
+        id: statisticsCard
+        anchors.top: staionInfo.bottom
+        anchors.topMargin: 16
+        anchors.left: testCard.right
+        anchors.leftMargin: 16
+        width: 1392
+        height: 70
+        color: "#0f172a"
+        radius: 10
+        antialiasing: true
+
+        // 分隔线小组件（方便重复使用）
+        component StatItem : Column {
+            spacing: 4
+            property alias label: labelText.text
+            property alias value: valueText.text
+            property alias valueColor: valueText.color
+
+            Text {
+                id: labelText
+                font.family: "Inter, Segoe UI, sans-serif"
+                font.pixelSize: 15
+                color: "#64748b"       // text-slate-500
+                anchors.horizontalCenter: parent.horizontalCenter
+            }
+            Text {
+                id: valueText
+                font.family: "Inter, Segoe UI, sans-serif"
+                font.pixelSize: 36
+                font.weight: Font.Bold
+                font.letterSpacing: 1
+                color: "white"
+                anchors.horizontalCenter: parent.horizontalCenter
+            }
+        }
+
+        //统计框
+        RowLayout {
+            Layout.preferredHeight: 60
+            Layout.fillWidth: true   // 填满宽度
+            spacing: 30
+            // 四个统计项
+            Item { Layout.fillWidth: true; implicitWidth: 0 }
+            StatItem {
+                label: "总量"
+                value: "1,250"
+                valueColor: "white"
+            }
+            Rectangle { width: 1; height: 40; color: "#1e293b"; anchors.verticalCenter: parent.verticalCenter }  // 分隔线
+
+            StatItem {
+                label: "成功"
+                value: "1,231"
+                valueColor: "#22c55e"      // green-500
+            }
+            Rectangle { width: 1; height: 40; color: "#1e293b"; anchors.verticalCenter: parent.verticalCenter }
+
+            StatItem {
+                label: "失败"
+                value: "19"
+                valueColor: "#ef4444"      // red-500
+            }
+            Rectangle { width: 1; height: 40; color: "#1e293b"; anchors.verticalCenter: parent.verticalCenter }
+
+            StatItem {
+                label: "合格率"
+                value: "98.48%"
+                valueColor: "#60a5fa"      // blue-400
+            }
+            Item { Layout.fillWidth: true; implicitWidth: 0 }
+        }
+    }
+
+    UiFactoryTestRtTable {
+        id:tableCard
+        anchors.top: statisticsCard.bottom
+        anchors.topMargin: 8
+        anchors.left: testCard.right
+        anchors.leftMargin: 16
+        width: 1392
+        height: 792
+        //color: "#0f172a"
+        //radius: 10
+        antialiasing: true
+
+        tableModel: rtModel
     }
 }
