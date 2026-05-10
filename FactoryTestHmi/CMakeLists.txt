@@ -29,7 +29,7 @@ file(GLOB SRC_LIST
         "hmi/common/*.hpp"
 )
 
-add_executable(FactoryTestModule WIN32 ${SRC_LIST})
+add_executable(FactoryTestModule WIN32 ${SRC_LIST} resources/resources.qrc)
 
 include_directories(FactoryTestModule
         "common"
@@ -51,12 +51,14 @@ target_link_libraries(FactoryTestModule PRIVATE
 qt_add_qml_module(FactoryTestModule
         URI FactoryTestHmi
         QML_FILES
-        hmi/Home.qml
-        hmi/Head.qml
-        hmi/UiTestPanel.qml
-        hmi/UiFactoryTest.qml
-        hmi/UiTestCard.qml
-        hmi/UiFactoryTestRtTable.qml
+            hmi/Home.qml
+            hmi/Head.qml
+            hmi/UiTestPanel.qml
+            hmi/UiFactoryTest.qml
+            hmi/UiTestCard.qml
+            hmi/UiFactoryTestRtTable.qml
+        RESOURCES
+            resources/pvt.png
 )
 
 if(WIN32)

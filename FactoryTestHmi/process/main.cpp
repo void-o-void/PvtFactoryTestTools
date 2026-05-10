@@ -4,11 +4,19 @@
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
+#include <QIcon>
+#include <QFile>
+
+#include <QtCore/QOperatingSystemVersion>
+#include <Windows.h>
 
 #include "test_rt_model.hpp"
 
 int main(int argc, char *argv[]) {
     QGuiApplication app(argc, argv);
+    qDebug() << "Resource exists?" << QFile::exists("qrc:/pvt.png");
+    app.setWindowIcon(QIcon(":/pvt.png"));
+    qDebug() << "Icon exists:" << QFile::exists(":/pvt.png");
 
     RtModel *model = RtModel::instance();
 

@@ -12,7 +12,31 @@ Window {
     x:100
     y:50
 
+    Item {
+        id: dragHandle
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.right: parent.right
+        height: 18
+        z: 100                     // 确保在所有元素之上
 
+        MouseArea {
+            anchors.fill: parent
+            cursorShape: Qt.ArrowCursor   // 可选，提示可拖动
+            property point lastPos: Qt.point(0, 0)
+
+            onPressed: {
+                lastPos = Qt.point(mouse.x, mouse.y)
+            }
+            onPositionChanged: {
+                if (pressed) {
+                    var delta = Qt.point(mouse.x - lastPos.x, mouse.y - lastPos.y)
+                    root.x += delta.x
+                    root.y += delta.y
+                }
+            }
+        }
+    }
 
     Rectangle {
         width: 1920
@@ -24,15 +48,10 @@ Window {
 
     Head {
         id: head
-        anchors.top: parent.top
-        anchors.topMargin: 16
-        anchors.left: parent.left
-        anchors.leftMargin: 16
-        width: parent.width - 32
-        color: "#0f172a"
+        x: 16
+        y: 16
+        width: 1888
         height: 96
-        border.color: "#1e293b"
-        border.width: 1
     }
 
     UiFactoryTest {

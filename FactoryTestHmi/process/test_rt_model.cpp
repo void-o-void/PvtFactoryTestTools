@@ -53,8 +53,7 @@ RtModel::RtModel(QObject *parent) : QAbstractTableModel(parent)
     generateTestData(m_items);
 }
 
-int RtModel::rowCount(const QModelIndex &parent) const
-{
+int RtModel::rowCount(const QModelIndex &parent) const {
     if (parent.isValid()) return 0;
     return m_items.size();
 }

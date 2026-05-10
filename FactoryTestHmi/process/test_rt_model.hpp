@@ -12,8 +12,7 @@
 #include <QColor>
 
 #include "common.hpp"
-
-// test_rt_model.hpp
+#include "uicommon.hpp"
 struct TestItem {
     int    id;        // 内部序号，方便更新时定位
     QString name;     // 名称
@@ -27,7 +26,16 @@ struct TestItem {
 class RtModel : public QAbstractTableModel {
     Q_OBJECT
     DECLARE_SINGLETON(RtModel);
+
+    AUTO_PROPERTY(QString, total_num);
+    AUTO_PROPERTY(QString, pass_num);
+    AUTO_PROPERTY(QString, fail_num);
+    AUTO_PROPERTY(QString, untest_num);
+
+    
+
     explicit RtModel(QObject *parent = nullptr);
+
 public:
     enum TestRoles {
         NameRole = Qt::UserRole + 1,

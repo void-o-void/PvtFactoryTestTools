@@ -4,10 +4,10 @@ import QtQuick.Shapes
 
 Rectangle {
     id: topHeader
-    width: 1920
     height: 96                  // 对应原始设计 h-24 (96px)
     radius: 12                  // rounded-xl
     antialiasing: true
+    clip: true
 
     // 工业风格渐变背景
     gradient: Gradient {
@@ -33,23 +33,19 @@ Rectangle {
         anchors.verticalCenter: parent.verticalCenter
         spacing: 16
 
-        // 图标容器（蓝色方底）
         Rectangle {
-            width: 48; height: 48
+            width: 52; height: 52
             radius: 8
-            color: "#2563eb"          // bg-blue-600
+            color: "transparent"
 
-            // 工厂图标（MDI factory）
-            Shape {
+            // 使用资源文件中的 pvt.png 作为图标
+            Image {
                 anchors.centerIn: parent
-                width: 28; height: 24
-                ShapePath {
-                    fillColor: "white"
-                    strokeColor: "transparent"
-                    PathSvg {
-                        path: "M19,11V3H23V11L22,21H2L1,11H5V3H9V11H10V3H14V11H15V3H19V11M17,13H7V19H17V13Z"
-                    }
-                }
+                width: 52
+                height: 52
+                source: "qrc:/qt/qml/FactoryTestHmi/resources/pvt.png"
+                fillMode: Image.PreserveAspectFit
+                smooth: true
             }
         }
 
@@ -59,15 +55,26 @@ Rectangle {
             spacing: 2
 
             // 主标题 + 版本号行
+
+            Text {
+                text: "SMARTTEST PRO"
+                font.family: "Inter, Segoe UI, sans-serif"
+                font.pixelSize: 24
+                font.weight: Font.Bold
+                font.letterSpacing: 1.2   // tracking-wider (0.05em ≈ 1.2px)
+                color: "#60a5fa"           // text-blue-400
+            }
+
+
+            // 副标题
             Row {
-                spacing: 8
+                spacing: 10
                 Text {
-                    text: "SMARTTEST PRO"
+                    text: "智能工厂测试集成系统"
                     font.family: "Inter, Segoe UI, sans-serif"
-                    font.pixelSize: 24
-                    font.weight: Font.Bold
-                    font.letterSpacing: 1.2   // tracking-wider (0.05em ≈ 1.2px)
-                    color: "#60a5fa"           // text-blue-400
+                    font.pixelSize: 12
+                    font.letterSpacing: 1.2        // tracking-widest (0.1em)
+                    color: "#94a3b8"              // text-slate-400
                 }
                 Text {
                     text: "V2.4.0"
@@ -75,17 +82,7 @@ Rectangle {
                     font.pixelSize: 14
                     font.weight: Font.Light
                     color: "#64748b"           // text-slate-500
-                    anchors.baseline: parent.baseline
                 }
-            }
-
-            // 副标题
-            Text {
-                text: "智能工厂测试集成系统"
-                font.family: "Inter, Segoe UI, sans-serif"
-                font.pixelSize: 12
-                font.letterSpacing: 1.2        // tracking-widest (0.1em)
-                color: "#94a3b8"              // text-slate-400
             }
         }
     }

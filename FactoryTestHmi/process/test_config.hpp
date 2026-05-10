@@ -10,6 +10,8 @@
 #include <QFile>
 #include <QMetaType>
 #include <QMap>
+#include "common.hpp"
+#include "uicommon.hpp"
 
 #define PROJECT_DIR  "C:\\Users\\LEGION\\Desktop\\work\\FactoryTestModule"
 
@@ -101,84 +103,43 @@ struct SEnvItem {
         }
     }
 };
-Q_DECLARE_METATYPE(SEnvItem)
 
-class Config {
+
+class Config : public QObject {
+    Q_OBJECT
+
+    DECLARE_SINGLETON(Config)
+
+    AUTO_PROPERTY(QString, order_no);
+    AUTO_PROPERTY(QString, user_no);
+    AUTO_PROPERTY(QString, line_name);
+    AUTO_PROPERTY(QString, station_name);
+    AUTO_PROPERTY(QString, fixture_no);
+
+public:
+    static Config* readConfig(const QString& project_name);
+
+    void loadProjectData(const QString& projectName);
+
+    void changeProject(const QString& project_name);
+
+    static QJsonObject jsonFromFile(const QString& fileName);
+
+    static void jsonToFile(const QString& fileName, const QJsonObject& obj);
+
+    void fromJson(const QJsonObject& obj);
+
+    void save() {
+
+    }
+
+private:
     Config() {
         QJsonObject obj =  jsonFromFile( PROJECT_DIR + QString("/config/config.json"));
         changeProject(obj["current_project"].toString());
     }
 
-public:
-    static Config& instance() {
-        static Config m_instance;
-        return m_instance;
-    }
-
-    static Config readConfig(QString project_name) {
-        Config config;
-        config.loadProjectData(project_name);
-        return config;
-    }
-
-    void loadProjectData(const QString& projectName) {
-        QString fileName = PROJECT_DIR + QString("/config/") + projectName + ".json";
-        QJsonObject obj = jsonFromFile(fileName);
-        fromJson(obj);
-        current_project = projectName;
-    }
-
-    void changeProject(const QString& project_name) {
-        QString fileName = PROJECT_DIR + QString("/config/"+ project_name + ".json");
-        fromJson(jsonFromFile(fileName));
-        current_project = project_name;
-
-        QJsonObject rootConfig;
-        rootConfig["current_project"] = current_project;
-        jsonToFile( QString(QString(PROJECT_DIR) + "/config/config.json"), rootConfig);
-    };
-
-    static QJsonObject jsonFromFile(const QString& fileName) {
-        QFile file(fileName);
-        if (! file.open(QIODevice::ReadWrite | QIODevice::Text)) {
-            return QJsonObject();
-        }
-        return QJsonDocument::fromJson(file.readAll()).object();
-    }
-
-    static void jsonToFile(const QString& fileName, const QJsonObject& obj) {
-        QFile file(fileName);
-        if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-            file.write(QJsonDocument(obj).toJson(QJsonDocument::Indented));
-            file.close();
-        }
-    }
-
-    void fromJson(const QJsonObject& obj) {
-        project_Name = obj["project_name"].toString();
-        m_factory_config.fromJson(obj["factory"].toObject());
-        m_station_config.fromJson(obj["station"].toObject());
-        m_connect_serial.fromJson(obj["connect_serial"].toObject());
-        m_debug_serial.fromJson(obj["debug_serial"].toObject());
-
-        m_test_items.clear();
-        QJsonArray test_items_array = obj["test_items"].toArray();
-        for (auto it = test_items_array.begin(); it != test_items_array.end(); ++it) {
-            QJsonObject obj = it->toObject();
-            m_test_items.insert(obj["code"].toInt() ,STestItem(obj));
-        }
-
-        m_env_items.clear();
-        QJsonArray env_items_array = obj["env_items"].toArray();
-        for (auto it = env_items_array.begin(); it != env_items_array.end(); ++it) {
-            QJsonObject obj = it->toObject();
-            m_env_items.insert(obj["descr"].toString(),SEnvItem(obj));
-        }
-    }
-
-    void save() {
-
-    }
+    ~Config() {}
 
 public:
     QString project_Name = "";            //项目

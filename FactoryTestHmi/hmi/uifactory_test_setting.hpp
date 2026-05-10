@@ -17,7 +17,7 @@ class UiFactoryTestSetting : public QWidget {
     Q_OBJECT
 public:
     explicit UiFactoryTestSetting(QWidget* parent = nullptr) : QWidget(parent) {
-        load(Config::instance().current_project);
+        load(Config::instance()->current_project);
     }
 
     void save() {
@@ -36,32 +36,32 @@ public:
 
         auto cfg = Config::readConfig(projectName);
         QHBoxLayout* project_layout = new QHBoxLayout();
-        project_layout->addLayout(UiUtils::createEditBox(this, (QWidget*&)m_project_select, "项目选择", 2, cfg.project_Name, 4,
+        project_layout->addLayout(UiUtils::createEditBox(this, (QWidget*&)m_project_select, "项目选择", 2, cfg->project_Name, 4,
             "combox", QStringList() << "P39" << "P41" << "P4A"));
         project_layout->addStretch();
 
         QGridLayout* station_layout = new QGridLayout();
-        station_layout->addLayout(UiUtils::createEditBox(this, (QWidget*&)m_user_no, "员工编号", 2, cfg.m_station_config.user_no, 4), 0,0);
-        station_layout->addLayout(UiUtils::createEditBox(this, (QWidget*&)m_order_no, "工单号", 2, cfg.m_station_config.order_no, 4), 0,1);
-        station_layout->addLayout(UiUtils::createEditBox(this, (QWidget*&)m_line_name, "线别", 2, cfg.m_station_config.line_name, 4), 1,0);
-        station_layout->addLayout(UiUtils::createEditBox(this, (QWidget*&)m_station_name, "工序名称(站位)", 2, cfg.m_station_config.station_name, 4), 1,1);
-        station_layout->addLayout(UiUtils::createEditBox(this, (QWidget*&)m_fixture_no, "夹具编号", 2, cfg.m_station_config.fixture_no, 4), 2,0);
+        station_layout->addLayout(UiUtils::createEditBox(this, (QWidget*&)m_user_no, "员工编号", 2, cfg->m_station_config.user_no, 4), 0,0);
+        station_layout->addLayout(UiUtils::createEditBox(this, (QWidget*&)m_order_no, "工单号", 2, cfg->m_station_config.order_no, 4), 0,1);
+        station_layout->addLayout(UiUtils::createEditBox(this, (QWidget*&)m_line_name, "线别", 2, cfg->m_station_config.line_name, 4), 1,0);
+        station_layout->addLayout(UiUtils::createEditBox(this, (QWidget*&)m_station_name, "工序名称(站位)", 2, cfg->m_station_config.station_name, 4), 1,1);
+        station_layout->addLayout(UiUtils::createEditBox(this, (QWidget*&)m_fixture_no, "夹具编号", 2, cfg->m_station_config.fixture_no, 4), 2,0);
         m_station_group = new QGroupBox("站位配置",this);
         m_station_group->setLayout(station_layout);
 
 
         QHBoxLayout* factory_layout = new QHBoxLayout();
-        factory_layout->addLayout(UiUtils::createEditBox(this, (QWidget*&)m_factory_select, "工厂选择", 2, cfg.m_factory_config.factory_name, 4,
+        factory_layout->addLayout(UiUtils::createEditBox(this, (QWidget*&)m_factory_select, "工厂选择", 2, cfg->m_factory_config.factory_name, 4,
             "combox", QStringList() << "PVT01" << "PVT02"));
-        factory_layout->addLayout(UiUtils::createEditBox(this, (QWidget*&)m_mes_ip, "mes ip", 2, cfg.m_factory_config.mes_ip, 4));
-        factory_layout->addLayout(UiUtils::createEditBox(this, (QWidget*&)m_mes_port, "mes port", 2, QString::number(cfg.m_factory_config.mes_port), 4));
-        factory_layout->addLayout(UiUtils::createEditBox(this, (QWidget*&)m_mes_update, "是否上传mes", 2, cfg.m_factory_config.mes_enable ? "上传" : "关闭", 4,
+        factory_layout->addLayout(UiUtils::createEditBox(this, (QWidget*&)m_mes_ip, "mes ip", 2, cfg->m_factory_config.mes_ip, 4));
+        factory_layout->addLayout(UiUtils::createEditBox(this, (QWidget*&)m_mes_port, "mes port", 2, QString::number(cfg->m_factory_config.mes_port), 4));
+        factory_layout->addLayout(UiUtils::createEditBox(this, (QWidget*&)m_mes_update, "是否上传mes", 2, cfg->m_factory_config.mes_enable ? "上传" : "关闭", 4,
             "combox", QStringList() << "上传" << "关闭"));
         m_factory_group = new QGroupBox("工厂配置",this);
         m_factory_group->setLayout(factory_layout);
 
         QGridLayout* envs_layout = new QGridLayout();
-        for (auto& env : cfg.m_env_items) {
+        for (auto& env : cfg->m_env_items) {
             QLineEdit* env_line  = nullptr;
             envs_layout->addLayout(UiUtils::createEditBox(this, (QWidget*&)env_line, env.descr, 2, env.value, 4), env.sn / 2, env.sn % 2);
             env_line->setProperty("descr", QVariant::fromValue(env.descr));
@@ -71,7 +71,7 @@ public:
         m_envs_group->setLayout(envs_layout);
 
         QGridLayout* items_layout = new QGridLayout();
-        for (auto& item : cfg.m_test_items) {
+        for (auto& item : cfg->m_test_items) {
             QCheckBox* item_check = new QCheckBox(item.descr, this);
             items_layout->addWidget(item_check, item.sn / 4, item.sn % 4);
             item_check->setProperty("code", QVariant::fromValue(item.code));
