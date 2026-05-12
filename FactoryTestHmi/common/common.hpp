@@ -5,6 +5,9 @@
 #ifndef FACTORY_TEST_CPP_COMM_H
 #define FACTORY_TEST_CPP_COMM_H
 
+#include <vector>
+#include <cstdint>
+
 #define PLATFORM_MT8678_3OS 1
 #define PLATFORM_MT8676_3OS 2
 #define CURR_PLATFORM PLATFORM_MT8678_3OS
@@ -40,9 +43,9 @@ typedef struct {
 
 typedef struct {
     uint8_t index;
-    char* data;
     uint8_t type;
     short data_len;
+    std::vector<uint8_t> data;   // RAII 自动管理内存
 } MessageEntity;
 
 #define DECLARE_SINGLETON(ClassName) \

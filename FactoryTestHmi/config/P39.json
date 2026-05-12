@@ -17,7 +17,7 @@
     },
 
     "connect_serial": {
-        "com":"COM6",
+        "com":"COM3",
         "baud_rate": 921600,
         "stop_bits":  1,
         "parity_bits": 1

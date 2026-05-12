@@ -174,8 +174,8 @@ private:
 
     // 工作线程中的消息处理（状态机）
     void handleMsg(const MessageEntity &msg) {
-        if (msg.data_len < 1) return;
-        uint8_t func = static_cast<uint8_t>(msg.data[0]);
+        if (msg.data_len < 1 || msg.data.empty()) return;
+        uint8_t func = msg.data[0];
 
         switch (m_state.load()) {
         case Disconnect:
@@ -204,19 +204,17 @@ private:
                 // 构造并发送测试参数配置
                 MessageEntity cfgMsg;
                 cfgMsg.index = 0;
-                cfgMsg.type = 0;
-                char cfgData[] = { static_cast<char>(MsgFuncCode::CMD_CFG_PARAM), 0 };
-                cfgMsg.data = cfgData;
-                cfgMsg.data_len = sizeof(cfgData);
+                cfgMsg.type  = 0;
+                cfgMsg.data  = { static_cast<uint8_t>(MsgFuncCode::CMD_CFG_PARAM), 0 };
+                cfgMsg.data_len = static_cast<short>(cfgMsg.data.size());
                 m_connect_protocol->push(cfgMsg);
 
                 // 构造并发送测试项列表
                 MessageEntity listMsg;
                 listMsg.index = 0;
-                listMsg.type = 0;
-                char listData[] = { static_cast<char>(MsgFuncCode::CMD_TEST_LIST), 0 };
-                listMsg.data = listData;
-                listMsg.data_len = sizeof(listData);
+                listMsg.type  = 0;
+                listMsg.data  = { static_cast<uint8_t>(MsgFuncCode::CMD_TEST_LIST), 0 };
+                listMsg.data_len = static_cast<short>(listMsg.data.size());
                 m_connect_protocol->push(listMsg);
             }
             break;

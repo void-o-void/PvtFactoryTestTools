@@ -29,6 +29,7 @@ file(GLOB SRC_LIST
         "hmi/*.hpp"
         "hmi/common/*.cpp"
         "hmi/common/*.hpp"
+        "common/qserial_channel.hpp"
 )
 
 add_executable(FactoryTestModule WIN32 ${SRC_LIST} resources/resources.qrc)

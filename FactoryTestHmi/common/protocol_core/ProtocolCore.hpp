@@ -107,11 +107,21 @@ public:
             m_cfg = protocolCfg();
 
             ParseState state = E_HEAD;
-            SDataPacket pkg;
+            SDataPacket pkg{};
             while (m_running) {
                 switch (state) {
                     case E_HEAD: {
-                        pkg = SDataPacket();
+                        // 清理上一帧残留内存
+                        if (pkg.fundata != nullptr) {
+                            delete[] pkg.fundata;
+                            pkg.fundata = nullptr;
+                        }
+                        if (pkg.data != nullptr) {
+                            delete[] pkg.data;
+                            pkg.data = nullptr;
+                        }
+                        pkg = SDataPacket{};
+
                         uint8_t head[m_cfg.head_len];
                         memset(head, 0, m_cfg.head_len);
                         for (int i = 0; i < m_cfg.head_len; i++) {
@@ -138,15 +148,22 @@ public:
                     case E_BODY: {
                         pkg.data = new uint8_t[pkg.data_len];
                         if (! m_channel->readnData(pkg.data, pkg.data_len)) {
-                            if (pkg.fundata != nullptr) {
-                                delete [] pkg.fundata;
-                            }
                             state = E_HEAD;
                             break;
                         }
 
                         T msg = decode(pkg);
                         m_queue.push(msg);
+
+                        // 释放本帧分配的内存
+                        if (pkg.fundata != nullptr) {
+                            delete[] pkg.fundata;
+                            pkg.fundata = nullptr;
+                        }
+                        if (pkg.data != nullptr) {
+                            delete[] pkg.data;
+                            pkg.data = nullptr;
+                        }
                         state = E_HEAD;
                     }break;
                 }

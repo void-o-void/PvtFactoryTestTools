@@ -1,4 +1,4 @@
-//
+﻿//
 // Created by panshiquan on 2026/4/17.
 //
 #ifndef FACTORYTESTMODULE_TEST_CONFIG_H
@@ -14,7 +14,10 @@
 #include "uicommon.hpp"
 #include "test_rt_model.hpp"
 
-#define PROJECT_DIR  "C:\\Users\\panshiquan\\Desktop\\work\\PvtFactoryTestTools\\FactoryTestHmi"
+
+
+//#define PROJECT_DIR  "C:\\Users\\panshiquan\\Desktop\\work\\PvtFactoryTestTools\\FactoryTestHmi"
+#define PROJECT_DIR  "C:\\Users\\void\\Desktop\\work\\PvtFactoryTestTools\\FactoryTestHmi"
 
 struct SSerialConfig {
     QString com = "COM1";                 //COM口

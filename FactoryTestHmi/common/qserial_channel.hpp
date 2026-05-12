@@ -1,5 +1,7 @@
 //
 // Created by LEGION on 2026/4/23.
+// 重构：使用 QSerialPort::readyRead 信号 + 条件变量，
+// 解决 Windows 上 waitForReadyRead 不可靠导致接收阻塞的问题。
 //
 
 #ifndef FACTORYTESTMODULE_QSERIAL_CHANNEL_H
@@ -8,23 +10,45 @@
 #include "Channel.hpp"
 #include <QSerialPort>
 #include <QSerialPortInfo>
-#include <memory>
-#include <algorithm>
-#include <QString>
+#include <QThread>
 #include <QDebug>
+#include <QMetaObject>
+#include <memory>
+#include <deque>
+#include <mutex>
+#include <condition_variable>
+#include <chrono>
 
-class SerialChannel : public Channel {
+// ============================================================================
+// SerialPortWorker — 在专用 QThread 中运行，负责真实串口 I/O
+//   - 利用 Qt 事件循环 + readyRead 信号驱动数据接收
+//   - 绕过 Windows 下 waitForReadyRead() 的 Overlapped I/O 缺陷
+// ============================================================================
+class SerialPortWorker : public QObject {
+    Q_OBJECT
 public:
-    SerialChannel(const QString &portName, QSerialPort::BaudRate baud_rate): Channel(-1, 100), m_portName(portName), m_baudRate(baud_rate) {
-        m_serial = std::make_unique<QSerialPort>();
+    SerialPortWorker(const QString              &portName,
+                     QSerialPort::BaudRate       baudRate,
+                     std::mutex                 &mtx,
+                     std::condition_variable    &cv,
+                     std::deque<uint8_t>        &byteQueue,
+                     std::atomic_bool           &isRun)
+        : QObject(nullptr)
+        , m_portName(portName)
+        , m_baudRate(baudRate)
+        , m_mutex(mtx)
+        , m_cv(cv)
+        , m_byteQueue(byteQueue)
+        , m_isRun(isRun) {}
+
+    ~SerialPortWorker() override {
+        closePort();
     }
-    ~SerialChannel() override{ SerialChannel::unInit(); }
 
-    // 覆写虚函数
-    bool init() override {
-        if (m_is_run)
-            return true;
-
+public slots:
+    // 在 QThread 的 start() 信号触发后调用，创建并打开串口
+    void openPort() {
+        m_serial = new QSerialPort(this);   // parent = this，随线程销毁自动清理
         m_serial->setPortName(m_portName);
         m_serial->setBaudRate(m_baudRate);
         m_serial->setDataBits(QSerialPort::Data8);
@@ -33,89 +57,178 @@ public:
         m_serial->setFlowControl(QSerialPort::NoFlowControl);
 
         if (!m_serial->open(QIODevice::ReadWrite)) {
-            qDebug() << "SerialChannel: open failed:" << m_serial->errorString();
-            return false;
+            qWarning() << "SerialPortWorker: open failed:" << m_serial->errorString();
+            m_isRun = false;
+            m_cv.notify_all();   // 唤醒可能阻塞在 readData 的线程
+            return;
         }
 
-        m_readPos = 0;
-        m_readSize = 0;
-        m_is_run = true;
-        return true;
+        // ★ 核心：用 readyRead 信号驱动接收，不依赖 waitForReadyRead
+        connect(m_serial, &QSerialPort::readyRead,
+                this,     &SerialPortWorker::onReadyRead);
+
+        m_isRun = true;
+        qDebug() << "SerialPortWorker: port opened" << m_portName << m_baudRate;
+    }
+
+    // 来自调用方的异步写入
+    void writeData(QByteArray data) {
+        if (m_serial && m_serial->isOpen()) {
+            std::lock_guard<std::mutex> lock(m_writeMutex);
+            m_serial->write(data);
+            m_serial->waitForBytesWritten(100);
+        }
+    }
+
+private slots:
+    void onReadyRead() {
+        if (!m_serial || !m_serial->isOpen()) return;
+
+        QByteArray data = m_serial->readAll();
+        if (data.isEmpty()) return;
+
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            for (int i = 0; i < data.size(); ++i) {
+                m_byteQueue.push_back(static_cast<uint8_t>(data[i]));
+            }
+        }
+        m_cv.notify_one();   // 唤醒 readData 中等待的协议线程
+    }
+
+private:
+    void closePort() {
+        if (m_serial) {
+            disconnect(m_serial, &QSerialPort::readyRead,
+                       this,     &SerialPortWorker::onReadyRead);
+            if (m_serial->isOpen()) {
+                m_serial->close();
+            }
+        }
+    }
+
+    QSerialPort                *m_serial = nullptr;
+    QString                     m_portName;
+    QSerialPort::BaudRate       m_baudRate;
+    std::mutex                 &m_mutex;
+    std::condition_variable    &m_cv;
+    std::deque<uint8_t>        &m_byteQueue;
+    std::atomic_bool           &m_isRun;
+    std::mutex                  m_writeMutex;
+};
+
+
+// ============================================================================
+// SerialChannel — 对外保持 Channel 接口不变
+//   内部使用 SerialPortWorker + QThread 驱动 I/O
+//   readData() 从字节队列取数据，队列空时阻塞等待（条件变量，无 busy-loop）
+// ============================================================================
+class SerialChannel : public Channel {
+public:
+    SerialChannel(const QString &portName, QSerialPort::BaudRate baudRate)
+        : Channel(-1, 100)
+        , m_portName(portName)
+        , m_baudRate(baudRate) {}
+
+    ~SerialChannel() override {
+        SerialChannel::unInit();
+    }
+
+    bool init() override {
+        if (m_is_run)
+            return true;
+
+        // 清空上次可能的残留
+        {
+            std::lock_guard<std::mutex> lock(m_byteMutex);
+            m_byteQueue.clear();
+        }
+
+        m_thread  = new QThread();
+        m_worker  = new SerialPortWorker(m_portName, m_baudRate,
+                                         m_byteMutex, m_byteCv,
+                                         m_byteQueue, m_is_run);
+        m_worker->moveToThread(m_thread);
+
+        QObject::connect(m_thread, &QThread::started,
+                         m_worker, &SerialPortWorker::openPort);
+        QObject::connect(m_thread, &QThread::finished,
+                         m_worker, &QObject::deleteLater);
+
+        m_thread->start();
+
+        // 等待工作线程完成串口打开（最多等 3 秒）
+        int waited = 0;
+        while (!m_is_run && waited < 3000) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            waited += 10;
+        }
+
+        return m_is_run;
     }
 
     bool unInit() override {
-        m_is_run = false;  // 先置标志，让阻塞中的 readData 退出
-        if (m_serial && m_serial->isOpen()) {
-            m_serial->close();
+        m_is_run = false;                   // 先通知所有等待者
+        m_byteCv.notify_all();            // 唤醒阻塞在 readData 的线程
+
+        if (m_thread) {
+            m_thread->quit();             // 退出事件循环
+            if (!m_thread->wait(2000)) {
+                m_thread->terminate();    // 超时强制终止
+                m_thread->wait();
+            }
+            delete m_thread;
+            m_thread = nullptr;
+            m_worker = nullptr;            // 已 deleteLater 或随线程销毁
         }
+
+        // 再次清空队列
+        {
+            std::lock_guard<std::mutex> lock(m_byteMutex);
+            m_byteQueue.clear();
+        }
+
         return true;
     }
 
-    int readData(uint8_t *data, int maxlen) override{
-        if (!m_is_run || !m_serial || !m_serial->isOpen())
+    // ----- 读数据：从线程安全字节队列取 -----
+    int readData(uint8_t *data, int maxlen) override {
+        if (maxlen <= 0)
+            return 0;
+
+        std::unique_lock<std::mutex> lock(m_byteMutex);
+
+        // 阻塞等待，直到队列有数据或通道关闭
+        m_byteCv.wait(lock, [this]() {
+            return !m_byteQueue.empty() || !m_is_run;
+        });
+
+        if (!m_is_run && m_byteQueue.empty())
             return -1;
 
-        // 内部缓冲区有数据，直接从内存取（零系统调用）
-        if (m_readPos < m_readSize) {
-            size_t available = m_readSize - m_readPos;
-            size_t toRead = std::min(static_cast<size_t>(maxlen), available);
-            memcpy(data, m_readBuffer + m_readPos, toRead);
-            m_readPos += toRead;
-            return static_cast<int>(toRead);
+        // 从队列头部取出最多 maxlen 字节
+        size_t n = std::min(static_cast<size_t>(maxlen), m_byteQueue.size());
+        for (size_t i = 0; i < n; ++i) {
+            data[i] = m_byteQueue.front();
+            m_byteQueue.pop_front();
         }
-
-        // 缓冲区空了，等待串口数据
-        while (m_is_run) {
-            if (!m_serial->waitForReadyRead(100)) {
-                continue;  // 超时，检查 m_is_run 后继续
-            }
-
-            // 直接用大缓冲区 read()，一次读空串口驱动缓冲区所有字节
-            // 不依赖 bytesAvailable()，避免 Windows QSerialPort 行为不一致
-            qint64 n = m_serial->read(reinterpret_cast<char*>(m_readBuffer), kReadBufSize);
-            if (n < 0) {
-                qDebug() << "SerialChannel::readData read error:" << m_serial->errorString();
-                return -1;
-            }
-            if (n == 0) {
-                // 罕见：waitForReadyRead 返回 true 但没数据，重试
-                continue;
-            }
-
-            m_readSize = static_cast<size_t>(n);
-            m_readPos  = 0;
-
-            size_t toRead = std::min(static_cast<size_t>(maxlen), m_readSize);
-            memcpy(data, m_readBuffer, toRead);
-            m_readPos = toRead;
-            return static_cast<int>(toRead);
-        }
-
-        return -1;  // m_is_run == false
+        return static_cast<int>(n);
     }
 
-    bool writeData(const uint8_t *data, int len) override{
-        if (!m_is_run || !m_serial || !m_serial->isOpen() || len <= 0)
+    // ----- 写数据：异步投递到 I/O 线程执行 -----
+    bool writeData(const uint8_t *data, int len) override {
+        if (!m_is_run || !m_worker || len <= 0)
             return false;
 
-        std::lock_guard<std::mutex> lock(m_write_mutex);
+        // 跨线程安全：通过 QueuedConnection 把写入投递到 I/O 线程
+        QByteArray ba(reinterpret_cast<const char*>(data), len);
 
-        qint64 totalWritten = 0;
-        while (totalWritten < len && m_is_run) {
-            qint64 written = m_serial->write(reinterpret_cast<const char*>(data + totalWritten),
-                                             len - totalWritten);
-            if (written < 0) {
-                return false;
-            }
-            totalWritten += written;
+        // 用 BlockingQueuedConnection 等待写入完成（避免竞态）
+        QMetaObject::invokeMethod(m_worker, [this, ba]() {
+            m_worker->writeData(ba);
+        }, Qt::BlockingQueuedConnection);
 
-            if (totalWritten < len) {
-                if (!m_serial->waitForBytesWritten(m_timeout)) {
-                    return false;
-                }
-            }
-        }
-        return totalWritten == len;
+        return true;
     }
 
     std::string descr() const override {
@@ -123,17 +236,17 @@ public:
     }
 
 private:
-    std::unique_ptr<QSerialPort> m_serial;
-    QString m_portName;
-    qint32 m_baudRate = QSerialPort::Baud115200;
+    QString                  m_portName;
+    QSerialPort::BaudRate    m_baudRate;
 
-    // 内部读缓冲区：固定大小数组，一次 read() 读空串口驱动缓冲区
-    // 后续逐字节从内存取，零系统调用
-    static constexpr size_t kReadBufSize = 8192;
-    uint8_t m_readBuffer[kReadBufSize]{};
-    size_t m_readPos  = 0;   // 当前读取位置
-    size_t m_readSize = 0;   // 缓冲区有效字节数
+    // I/O 线程相关
+    QThread                 *m_thread = nullptr;
+    SerialPortWorker        *m_worker = nullptr;
+
+    // 线程安全字节队列（SerialPortWorker 写入 → 协议线程读取）
+    std::mutex               m_byteMutex;
+    std::condition_variable  m_byteCv;
+    std::deque<uint8_t>      m_byteQueue;
 };
 
-
-#endif //FACTORYTESTMODULE_QSERIAL_CHANNEL_H
+#endif // FACTORYTESTMODULE_QSERIAL_CHANNEL_H
