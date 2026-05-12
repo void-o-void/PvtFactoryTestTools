@@ -521,7 +521,7 @@ Rectangle {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: rtModel.regenerateData()
+                    onClicked: testManage.reset()
                 }
 
                 RowLayout {

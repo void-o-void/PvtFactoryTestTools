@@ -12,8 +12,9 @@
 #include <QMap>
 #include "common.hpp"
 #include "uicommon.hpp"
+#include "test_rt_model.hpp"
 
-#define PROJECT_DIR  "C:\\Users\\LEGION\\Desktop\\work\\FactoryTestModule"
+#define PROJECT_DIR  "C:\\Users\\panshiquan\\Desktop\\work\\PvtFactoryTestTools\\FactoryTestHmi"
 
 struct SSerialConfig {
     QString com = "COM1";                 //COM口
@@ -54,27 +55,11 @@ struct SStationConfig {
     }
 };
 
-struct STestItem {
-    int code;
-    int sn;
-    bool value;
-    QString descr;
-    void fromJson(const QJsonObject& obj) {
-        code = obj["code"].toInt();
-        sn = obj["sn"].toInt();
-        value = obj["value"].toBool();
-        descr = obj["descr"].toString();
-    }
-    STestItem(const QJsonObject& obj) {
-        fromJson(obj);
-    }
-};
-
 struct SEnvItem {
     QString descr= "";
     QString type;
     QString value;
-    int sn;
+    int sn{};
 
     bool is_enum = false;
     int index = 0;
@@ -104,54 +89,64 @@ struct SEnvItem {
     }
 };
 
+struct TestConfigItem {
+    int code{};
+    int sn{};
+    bool value{};
+    QString descr;
+    int timeout = 10;   // 秒
+    int retries = 0;
+    void fromJson(const QJsonObject& obj) {
+        this->code = obj["code"].toInt();
+        this->sn = obj["sn"].toInt();
+        this->value = obj["value"].toBool();
+        this->descr = obj["descr"].toString();
+        this->timeout = obj["timeout"].toInt();
+        this->retries = obj["retries"].toInt();
+    }
+    TestConfigItem(const QJsonObject& obj){fromJson(obj);};
+};
+
 
 class Config : public QObject {
     Q_OBJECT
-
     DECLARE_SINGLETON(Config)
 
-    AUTO_PROPERTY(QString, order_no);
-    AUTO_PROPERTY(QString, user_no);
-    AUTO_PROPERTY(QString, line_name);
-    AUTO_PROPERTY(QString, station_name);
-    AUTO_PROPERTY(QString, fixture_no);
-
 public:
-    static Config* readConfig(const QString& project_name);
+    // 切换项目（加载新 JSON）
+    void loadProject(const QString& projectName);
+    [[nodiscard]] QString currentProject() const { return m_currentProject; }
 
-    void loadProjectData(const QString& projectName);
+    // ========== 按需获取方法（不缓存）==========
+    // 基础信息（一次性获取多个，可返回结构体，但不存成员）
+    [[nodiscard]] SFactoryConfig factoryConfig() const;
+    [[nodiscard]] SStationConfig stationConfig() const;
+    [[nodiscard]] SSerialConfig connectSerial() const;
+    [[nodiscard]] SSerialConfig debugSerial() const;
 
-    void changeProject(const QString& project_name);
+    // 环境变量
+    [[nodiscard]] QMap<QString, SEnvItem> envItems() const;
 
+    // 全量测试项（配置界面用）
+    [[nodiscard]] QVector<TestConfigItem> allTestItems() const;
+
+    // 启用的测试项 → 转为测试流程结构体
+    [[nodiscard]] QVector<TestRunItem> enabledTestPlan() const;
+
+    // 保存修改后的测试项全量配置到文件（配置界面调用）
+    void saveTestItems(const QVector<TestConfigItem>& items);
+
+    // 通用 JSON 文件读写
     static QJsonObject jsonFromFile(const QString& fileName);
-
     static void jsonToFile(const QString& fileName, const QJsonObject& obj);
 
-    void fromJson(const QJsonObject& obj);
-
-    void save() {
-
-    }
-
 private:
-    Config() {
-        QJsonObject obj =  jsonFromFile( PROJECT_DIR + QString("/config/config.json"));
-        changeProject(obj["current_project"].toString());
-    }
+    Config();
+    ~Config() override = default;
+    [[nodiscard]] QJsonObject rootObj() const { return m_doc.object(); }
 
-    ~Config() {}
-
-public:
-    QString project_Name = "";            //项目
-    SFactoryConfig m_factory_config{};    //工厂参数
-    SStationConfig m_station_config{};    //占位参数
-    SSerialConfig m_connect_serial{};     //通讯参数
-    SSerialConfig m_debug_serial{};       //调试参数
-
-    QMap<QString, SEnvItem> m_env_items{};         //环境配置
-    QMap<int, STestItem> m_test_items{};           //测试项
-
-    QString current_project = "P39";
+    QString m_currentProject;
+    QJsonDocument m_doc;   // 唯一的数据源
 };
 
 #endif

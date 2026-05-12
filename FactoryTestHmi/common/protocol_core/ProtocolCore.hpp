@@ -7,10 +7,11 @@
 
 #include <mutex>
 #include <thread>
+#include <iostream>
 
 #include "Channel.hpp"
 #include "BlockingQueu.hpp"
-#include "utils.hpp"
+#include "Utils.hpp"
 
 template<typename T>
 class CProtocol {
@@ -37,19 +38,23 @@ public:
 
     CProtocol(Channel *channel) : m_channel(channel), m_running(false) {
         if (m_channel != nullptr) {
-            m_channel->init();
+            if ( m_channel->init()) {
+                m_running = true;
+            }
         }
     }
 
     virtual ~CProtocol() {
         m_running = false;
+        // 先关闭通道，中断可能阻塞在 readData 中的工作线程
+        if (m_channel != nullptr) {
+            m_channel->unInit();
+        }
         if (m_worker.joinable()) {
             m_worker.join();
         }
 
         if (m_channel != nullptr) {
-            m_channel->unInit();
-            m_running = false;
             delete m_channel;
         }
     }
@@ -68,28 +73,39 @@ public:
 
     void push(T msg) {
         int data_len = 0;
+        //std::cout << "push: encode befor"  <<std::endl;
         uint8_t *data = encode(msg, &data_len);
+        //std::cout << "push: encode after" << std::endl;
         if (data == nullptr) {
             return;
         }
 
-        //std::cout << "send msg: " << CUtils::formatHexToStr(data, data_len) << std::endl;
+        std::cout << "SendData: " << CUtils::formatHexToStr(data, data_len) << std::endl;
 
-        m_channel->writeData(data, data_len);
-        delete data;
+        //std::cout << "push: writeData befor, data_len= " << std::to_string(data_len) <<std::endl;
+        if (! m_channel->writeData(data, data_len)) {
+            //std::cout << "push: writeData error" << std::endl;
+        }
+
+        //std::cout << "push: writeData after" << std::endl;
+        free(data);
     }
 
     bool start() {
+        if (!m_running) {
+            return false;
+        }
+
         m_worker = std::thread([this]() {
             enum ParseState {
                 E_HEAD,
                 E_FUN,
-                E_BODY
+                E_BODY,
+                E_CRC
             };
 
             m_cfg = protocolCfg();
 
-            m_running = true;
             ParseState state = E_HEAD;
             SDataPacket pkg;
             while (m_running) {
@@ -97,8 +113,9 @@ public:
                     case E_HEAD: {
                         pkg = SDataPacket();
                         uint8_t head[m_cfg.head_len];
+                        memset(head, 0, m_cfg.head_len);
                         for (int i = 0; i < m_cfg.head_len; i++) {
-                            if (m_channel->readData(head + i, 1) != 1 || head[i] != m_cfg.head[i]) {
+                            if (!m_channel->readnData(head + i, 1) || head[i] != m_cfg.head[i]) {
                                 break;
                             }
                             if (i == m_cfg.head_len - 1) {
@@ -131,8 +148,7 @@ public:
                         T msg = decode(pkg);
                         m_queue.push(msg);
                         state = E_HEAD;
-                    }
-                    break;
+                    }break;
                 }
             }
         });
@@ -141,6 +157,12 @@ public:
 
     bool reset() {
         m_running = false;
+        // 先关闭通道，中断阻塞中的 readData，让工作线程能退出
+        if (m_channel) {
+            m_channel->unInit();
+        }
+        // 向队列推空消息，唤醒可能阻塞在 pull() 的线程
+        m_queue.push(T{});
         if (m_worker.joinable()) {
             m_worker.join();
         }
@@ -154,11 +176,11 @@ protected:
     virtual T decode(SDataPacket &packet) = 0;
     virtual uint8_t* encode(T &msg, int *len) = 0;
     virtual const SProtocolConfig protocolCfg() = 0;
-
+    Channel *m_channel;
     SProtocolConfig m_cfg;
 private:
     std::thread m_worker;
-    Channel *m_channel;
+
     bool m_running;
     BlockingQueue<T> m_queue;
 };

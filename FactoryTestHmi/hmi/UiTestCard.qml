@@ -23,6 +23,7 @@ Rectangle {
     function toggleTest() {
         if (!isRunning) {
             elapsedMs = 0
+            testManage.start()
             isRunning = true
         } else {
             isRunning = false
@@ -38,15 +39,15 @@ Rectangle {
         onTriggered: elapsedMs += 10
     }
 
-    // 数字字体（可选）
-    FontLoader {
-        id: digitalFont
-        source: "https://fonts.cdnfonts.com/s/14352/DigitalNumbers-Regular.woff"
-        onStatusChanged: {
-            if (status === FontLoader.Error)
-                console.warn("数字字体加载失败，使用等宽字体代替")
-        }
-    }
+    // // 数字字体（可选）
+    // FontLoader {
+    //     id: digitalFont
+    //     source: "https://fonts.cdnfonts.com/s/14352/DigitalNumbers-Regular.woff"
+    //     onStatusChanged: {
+    //         if (status === FontLoader.Error)
+    //             console.warn("数字字体加载失败，使用等宽字体代替")
+    //     }
+    // }
 
     implicitWidth: 480
     implicitHeight: 580
@@ -266,7 +267,7 @@ Rectangle {
                     id: timerDisplay
                     Layout.alignment: Qt.AlignHCenter
                     text: formatTime(elapsedMs)
-                    font.family: digitalFont.status === FontLoader.Ready ? digitalFont.name : "Courier New"
+                    font.family: "Courier New"
                     font.pixelSize: 40
                     font.bold: true
                     color: "#60a5fa"

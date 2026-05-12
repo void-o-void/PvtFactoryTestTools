@@ -13,17 +13,24 @@
 
 #include "common.hpp"
 #include "uicommon.hpp"
-struct TestItem {
-    int    id;        // 内部序号，方便更新时定位
-    QString name;     // 名称
-    QString testCode; // 测试码
-    QString status;   // 状态
-    QString duration; // 时长
-    QString message;  // 信息
-    QString result;   // 结果
+struct TestRunItem {
+    int    id;
+    QString name;
+    QString testCode;
+    QString status;
+    QString duration;
+    QString message;
+    QString result;
+
+    // 运行时控制字段（不暴露给 QML）
+    int    timeoutMs     = 5000;
+    int    maxRetries    = 0;
+    int    currentRetry  = 0;
+    bool   active        = false;
 };
 
 class RtModel : public QAbstractTableModel {
+    friend class TestFlowController;
     Q_OBJECT
     DECLARE_SINGLETON(RtModel);
 
@@ -31,6 +38,9 @@ class RtModel : public QAbstractTableModel {
     AUTO_PROPERTY(QString, pass_num);
     AUTO_PROPERTY(QString, fail_num);
     AUTO_PROPERTY(QString, untest_num);
+
+    AUTO_PROPERTY(int, state);
+    AUTO_PROPERTY(QString, duration);
 
     
 
@@ -53,11 +63,23 @@ public:
     [[nodiscard]] QHash<int, QByteArray> roleNames() const override;
 
     // 业务接口
-    Q_INVOKABLE void loadTestItems(const QVector<TestItem> &items);
+    Q_INVOKABLE void loadTestItems(const QVector<TestRunItem> &items);
     Q_INVOKABLE void updateTestValues(int row, const QString &status,const QString &duration,const QString &message,const QString &result);
     Q_INVOKABLE void regenerateData();
+
+    void reset() {
+        set_state(1);
+        set_total_num(QString::number(m_items.size()));
+        set_pass_num(QString::number(0));
+        set_fail_num(QString::number(0));
+        set_untest_num(QString::number(m_items.size()));
+
+        for (int row = 0; row < m_items.size(); row++) {
+            updateTestValues(row, "waiting", "0s", "等待测试", "--");
+        }
+    }
 private:
-    QVector<TestItem> m_items;
+    QVector<TestRunItem> m_items;
 };
 
 #endif //FACTORYTESTMODULE_TEST_RT_MODEL_H

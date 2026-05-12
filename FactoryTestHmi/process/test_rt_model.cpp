@@ -4,7 +4,7 @@
 #include "test_rt_model.hpp"
 #include <QRandomGenerator>
 
-static void generateTestData(QVector<TestItem> &out)
+static void generateTestData(QVector<TestRunItem> &out)
 {
     static const char *names[] = {
         "电池电压测试", "屏幕亮度测试", "WiFi 连接测试", "蓝牙配对测试",
@@ -33,7 +33,7 @@ static void generateTestData(QVector<TestItem> &out)
         int sec  = QRandomGenerator::global()->bounded(1, 30);
         int ms   = QRandomGenerator::global()->bounded(10, 99);
 
-        TestItem item;
+        TestRunItem item;
         item.id       = i + 1;
         item.name     = names[i % 20];
         item.testCode = testCodes[i % 10];
@@ -69,7 +69,7 @@ QVariant RtModel::data(const QModelIndex &index, int role) const
     if (!index.isValid() || index.row() >= m_items.size())
         return {};
 
-    const TestItem &item = m_items.at(index.row());
+    const TestRunItem &item = m_items.at(index.row());
 
     if (role == Qt::DisplayRole) {
         switch (index.column()) {
@@ -107,7 +107,7 @@ QHash<int, QByteArray> RtModel::roleNames() const
     return roles;
 }
 
-void RtModel::loadTestItems(const QVector<TestItem> &items)
+void RtModel::loadTestItems(const QVector<TestRunItem> &items)
 {
     beginResetModel();
     m_items = items;

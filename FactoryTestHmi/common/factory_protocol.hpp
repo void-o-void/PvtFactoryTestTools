@@ -5,11 +5,25 @@
 #ifndef SIMPLEPROTOCOL_CFACTORYTESTPROTOCOL_H
 #define SIMPLEPROTOCOL_CFACTORYTESTPROTOCOL_H
 
+#include <iostream>
+
 #include "ProtocolCore.hpp"
 #include "common.hpp"
 
 #include "json.hpp"
 
+#define HEAD 2           // 头部长度
+#define INDEX 1          // 索引长度
+#define DATA_LENGTH 2    // 数据长度字段长度
+#define TYPE 1           // 类型字段长度
+#define CHECKSUM 1       // 校验和长度
+#define HEADER1 0xAA     // 帧头字节1
+#define HEADER2 0x55     // 帧头字节2
+#define MAX_BODY_SIZE 550 // 最大Body content长度
+#define MIN_BODY_SIZE 3 // 最小Body content长度
+#define MAX_PACKET_SIZE (HEAD + INDEX + DATA_LENGTH + TYPE + MAX_BODY_SIZE + CHECKSUM + 10) //加上冗余10个字节
+#define PACKAGE_MIN_LENGTH (HEAD + INDEX + DATA_LENGTH + TYPE + CHECKSUM + MIN_BODY_SIZE) // 最小包长度
+#define MAX_BUFFER_SIZE (MAX_PACKET_SIZE * 2) // 缓冲区大小
 
 class CFactoryTestProtocol : public CProtocol<MessageEntity> {
 public:
@@ -60,40 +74,28 @@ public:
         }
     }
 
-    // 解析 CodeEntity（从 JSON 字符串）
-    static CodeEntity *parse_code_entity(const char *json_str) {
-        if (!json_str || *json_str == '\0') {
-            printf("Empty JSON string\n");
-            return nullptr;
+    static CodeEntity* parseCodeEntity(std::string buf) {
+        if (buf.empty()) return nullptr;
+
+        json data = json::parse(buf);
+        CodeEntity* code_entity = new CodeEntity();
+        code_entity->code = data["code"].get<int>();
+        code_entity->common = new CommonEntity;
+
+        // 1. 取出 para 数组，转换为字符串
+        std::vector<uint8_t> para_bytes = data["para"].get<std::vector<uint8_t>>();
+        std::string inner_json_str(para_bytes.begin(), para_bytes.end());
+
+        // 2. 二次解析得到真正的参数对象
+        json inner = json::parse(inner_json_str);
+        code_entity->common->action = inner["action"].get<int>();
+        code_entity->common->state  = inner["state"].get<int>();
+
+        if (inner.find("msg") != inner.end()) {
+            std::string str = inner["msg"].get<std::string>();
+            code_entity->common->msg = strdup(str.c_str());
         }
-
-        try {
-            json j = json::parse(json_str);
-            CodeEntity *entity = (CodeEntity *) malloc(sizeof(CodeEntity));
-            if (!entity) return nullptr;
-
-            // 解析 code
-            if (!j.contains("code") || !j["code"].is_number()) {
-                printf("Missing or invalid 'code' field\n");
-                free(entity);
-                return nullptr;
-            }
-            entity->code = j["code"].get<int>();
-
-            // 解析 para
-            if (j.contains("para")) {
-                std::string para_str = j["para"].dump();
-                entity->common = parse_common_entity(para_str.c_str());
-            } else {
-                printf("Missing 'para' field\n");
-                entity->common = nullptr;
-            }
-
-            return entity;
-        } catch (const json::exception &e) {
-            printf("JSON parse error in parse_code_entity: %s\n", e.what());
-            return nullptr;
-        }
+        return code_entity;
     }
 
     // ==================== 序列化函数 ====================
@@ -177,42 +179,50 @@ protected:
         MessageEntity msg;
         msg.index = packet.fundata[0];
         msg.type = packet.fundata[3];
-        msg.data = new char[packet.data_len + 1];
-        memcpy(msg.data, packet.data, packet.data_len);
-        msg.data[packet.data_len] = '\0';
-        msg.data_len = packet.data_len;
+        msg.data = new char[packet.data_len-1];
+        memcpy(msg.data, packet.data, packet.data_len-1);
+        msg.data_len = packet.data_len-1;
+
+        std::string buf("aa 55 " + CUtils::formatHexToStr(packet.fundata, 4) + " ");
+        buf += CUtils::formatHexToStr(packet.data, packet.data_len);
+        std::cout << m_channel->descr() << " recv: " << buf << std::endl;
         return msg;
     }
 
     uint8_t* encode(MessageEntity &msg, int *len) override {
-        int total_len = 6 + msg.data_len + 1;
-        auto* data = new uint8_t[total_len];
+        size_t data_len = msg.data_len;
 
-        int index = 0;
-        data[index] = 0xAA;
-        index += 1;
-        data[index] = 0x55;
-        index += 1;
-        data[index] = msg.index & 0xFF;
-        index += 1;
-        data[index] = (msg.data_len >> 8) & 0xFF;
-        index += 1;
-        data[index] = msg.data_len & 0xFF;
-        index += 1;
-        data[index] = msg.type & 0xFF;
-        index += 1;
-
-        memcpy(data + index, msg.data, msg.data_len);
-        index += msg.data_len;
-
-        uint8_t checksum = 0;
-        for (size_t i = 2; i < 6 + msg.data_len; i++) {
-            checksum ^= data[i];
+        // 计算总长度
+        size_t total_len = HEAD + INDEX + DATA_LENGTH + TYPE + data_len + CHECKSUM;
+        int data_length = data_len + TYPE;
+        // 分配内存
+        uint8_t* encoded = (uint8_t*)malloc(total_len);
+        if (!encoded) {
+            return NULL;
         }
-        data[index] = checksum;
+
+        // 填充数据
+        encoded[0] = HEADER1; // HEAD_DATA[0]
+        encoded[1] = HEADER2; // HEAD_DATA[1]
+        encoded[2] = msg.index & 0xFF; // index
+        encoded[3] = (data_length >> 8) & 0xFF; // dataLength high byte
+        encoded[4] = data_length & 0xFF; // dataLength low byte
+        encoded[5] = msg.type & 0xFF; // type
+
+        // 复制数据部分
+        memcpy(encoded + HEAD + INDEX + DATA_LENGTH + TYPE, msg.data, data_len);
+
+        // 计算校验和 (从索引开始到数据结束)
+        uint8_t checksum = 0;
+        for (size_t i = HEAD; i < HEAD + INDEX + DATA_LENGTH + TYPE + data_len; i++) {
+            checksum ^= encoded[i];
+        }
+
+        // 设置校验和
+        encoded[HEAD + INDEX + DATA_LENGTH + TYPE + data_len] = checksum;
 
         *len = total_len;
-        return data;
+        return encoded;
     }
 };
 

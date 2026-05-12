@@ -15,6 +15,7 @@ find_package(Qt6 COMPONENTS
         SerialPort
         Qml
         Quick
+        QuickControls2
         REQUIRED
 )
 
@@ -23,6 +24,7 @@ qt_policy(SET QTP0004 NEW)
 
 file(GLOB SRC_LIST
         "process/*.cpp"
+        "process/*.hpp"
         "hmi/*.cpp"
         "hmi/*.hpp"
         "hmi/common/*.cpp"
@@ -46,6 +48,7 @@ target_link_libraries(FactoryTestModule PRIVATE
         Qt::SerialPort
         Qt::Qml
         Qt::Quick
+        Qt::QuickControls2
 )
 
 qt_add_qml_module(FactoryTestModule
@@ -57,6 +60,7 @@ qt_add_qml_module(FactoryTestModule
             hmi/UiFactoryTest.qml
             hmi/UiTestCard.qml
             hmi/UiFactoryTestRtTable.qml
+            hmi/UiFactoryTestSetting.qml
         RESOURCES
             resources/pvt.png
 )
