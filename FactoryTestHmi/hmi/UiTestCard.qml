@@ -6,7 +6,9 @@ Rectangle {
     id: controlCard       // 更安全的 id，避免与 root 保留属性冲突
 
     // ---------- 公开状态 ----------
-    property bool isRunning: false
+    // testPhase: "idle" → 空闲  /  "waiting" → 等待连接  /  "testing" → 正在测试
+    property string testPhase: "idle"
+    property bool handshakeReceived: false
     property int elapsedMs: 0
 
     function formatTime(ms) {
@@ -21,20 +23,46 @@ Rectangle {
     }
 
     function toggleTest() {
-        if (!isRunning) {
+        if (testPhase === "idle") {
             elapsedMs = 0
+            handshakeReceived = false
             testManage.start()
-            isRunning = true
-        } else {
-            isRunning = false
+            testPhase = "waiting"
+        } else if (testPhase === "waiting") {
+            // 取消等待，回到空闲
+            handshakeReceived = false
+            testPhase = "idle"
+        } else if (testPhase === "testing") {
+            // 停止测试
+            handshakeReceived = false
+            testPhase = "idle"
         }
     }
 
-    // 10ms 计时器
+    // 监听 TestManage 状态变化
+    Connections {
+        target: testManage
+        function onStateChanged(state) {
+            if (state === 0) {          // Disconnect
+                controlCard.testPhase = "idle"
+                controlCard.handshakeReceived = false
+            } else if (state === 1) {   // Standby
+                controlCard.testPhase = "idle"
+                controlCard.handshakeReceived = false
+            }
+            // Busy(2) 由 start() 触发时已在 toggleTest 中设为 waiting
+        }
+        function onHandshakeDone() {
+            controlCard.handshakeReceived = true
+            controlCard.testPhase = "testing"
+        }
+    }
+
+    // 10ms 计时器（仅在测试中运行）
     Timer {
         id: runTimer
         interval: 10
-        running: controlCard.isRunning
+        running: controlCard.testPhase === "testing"
         repeat: true
         onTriggered: elapsedMs += 10
     }
@@ -143,8 +171,8 @@ Rectangle {
             Canvas {
                 id: buttonCanvas
                 anchors.fill: parent
-                property bool running: controlCard.isRunning
-                onRunningChanged: requestPaint()
+                property string phase: controlCard.testPhase
+                onPhaseChanged: requestPaint()
                 Component.onCompleted: requestPaint()
 
                 onPaint: {
@@ -153,18 +181,24 @@ Rectangle {
 
                     ctx.clearRect(0, 0, width, height)
 
-                    // 外环（深色边框）
+                    // 外环底色
                     ctx.beginPath()
                     ctx.arc(cx, cy, r, 0, 2 * Math.PI)
                     ctx.fillStyle = "#1e293b"
                     ctx.fill()
 
-                    // 内部渐变圆（半径减8）
-                    var grad = ctx.createRadialGradient(cx, cy, r * 0.1, cx, cy, r - 8)
-                    if (controlCard.isRunning) {
+                    // 内部渐变圆
+                    var grad = ctx.createRadialGradient(cx, cy, r * 0.05, cx, cy, r - 8)
+                    if (controlCard.testPhase === "testing") {
+                        // 正在测试：绿色
                         grad.addColorStop(0, "#22c55e")
-                        grad.addColorStop(1, "#166534")
+                        grad.addColorStop(1, "#14532d")
+                    } else if (controlCard.testPhase === "waiting") {
+                        // 等待连接：琥珀色
+                        grad.addColorStop(0, "#f59e0b")
+                        grad.addColorStop(1, "#78350f")
                     } else {
+                        // 空闲：暗色
                         grad.addColorStop(0, "#1e293b")
                         grad.addColorStop(1, "#0f172a")
                     }
@@ -178,50 +212,130 @@ Rectangle {
             // 中心图标 + 文字
             Column {
                 anchors.centerIn: parent
-                spacing: 6
+                spacing: 8
 
-                // 用纯图形替代 emoji Text，避免字体渲染产生的蓝色背景
+                // 图标区
                 Item {
                     anchors.horizontalCenter: parent.horizontalCenter
-                    width: 55
-                    height: 65
+                    width: 55; height: 65
 
-                    // 暂停图标：两条竖线
-                    Row {
-                        anchors.centerIn: parent
-                        visible: controlCard.isRunning
-                        spacing: 14
-                        Rectangle { width: 22; height: 70; radius: 3; color: "white" }
-                        Rectangle { width: 22; height: 70; radius: 3; color: "white" }
-                    }
-
-                    // 播放图标：三角形
+                    // --- 空闲：播放三角 ---
                     Canvas {
                         anchors.centerIn: parent
-                        visible: !controlCard.isRunning
-                        width: 55
-                        height: 65
+                        visible: controlCard.testPhase === "idle"
+                        width: 55; height: 65
                         onPaint: {
                             var ctx = getContext("2d")
                             ctx.fillStyle = "#94a3b8"
                             ctx.beginPath()
-                            ctx.moveTo(8, 0)
-                            ctx.lineTo(width, height / 2)
-                            ctx.lineTo(8, height)
+                            ctx.moveTo(8, 3)
+                            ctx.lineTo(width, height/2)
+                            ctx.lineTo(8, height-3)
                             ctx.closePath()
                             ctx.fill()
                         }
                         Component.onCompleted: requestPaint()
                     }
+
+                    // --- 等待：三个脉冲点 ---
+                    Row {
+                        anchors.centerIn: parent
+                        visible: controlCard.testPhase === "waiting"
+                        spacing: 12
+
+                        Rectangle {
+                            width: 12; height: 12; radius: 6
+                            color: "#fbbf24"
+                            SequentialAnimation on opacity {
+                                loops: Animation.Infinite
+                                NumberAnimation { from: 0.3; to: 1.0; duration: 600 }
+                                NumberAnimation { from: 1.0; to: 0.3; duration: 600 }
+                            }
+                        }
+                        Rectangle {
+                            width: 12; height: 12; radius: 6
+                            color: "#f59e0b"
+                            SequentialAnimation on opacity {
+                                loops: Animation.Infinite
+                                NumberAnimation { from: 0.3; to: 1.0; duration: 600 }
+                                PauseAnimation  { duration: 300 }
+                                NumberAnimation { from: 1.0; to: 0.3; duration: 600 }
+                            }
+                        }
+                        Rectangle {
+                            width: 12; height: 12; radius: 6
+                            color: "#d97706"
+                            SequentialAnimation on opacity {
+                                loops: Animation.Infinite
+                                NumberAnimation { from: 0.3; to: 1.0; duration: 600 }
+                                PauseAnimation  { duration: 600 }
+                                NumberAnimation { from: 1.0; to: 0.3; duration: 600 }
+                            }
+                        }
+                    }
+
+                    // --- 测试中：4条活动指示条（交错动画） ---
+                    Row {
+                        anchors.centerIn: parent
+                        visible: controlCard.testPhase === "testing"
+                        spacing: 7
+
+                        Rectangle {
+                            width: 6; height: 22; radius: 3; color: "#4ade80"
+                            SequentialAnimation on height {
+                                loops: Animation.Infinite
+                                PropertyAnimation { from: 10; to: 44; duration: 400; easing.type: Easing.InOutQuad }
+                                PropertyAnimation { from: 44; to: 10; duration: 400; easing.type: Easing.InOutQuad }
+                            }
+                        }
+                        Rectangle {
+                            width: 6; height: 22; radius: 3; color: "#22c55e"
+                            SequentialAnimation on height {
+                                loops: Animation.Infinite
+                                PauseAnimation  { duration: 150 }
+                                PropertyAnimation { from: 10; to: 44; duration: 400; easing.type: Easing.InOutQuad }
+                                PropertyAnimation { from: 44; to: 10; duration: 400; easing.type: Easing.InOutQuad }
+                            }
+                        }
+                        Rectangle {
+                            width: 6; height: 22; radius: 3; color: "#22c55e"
+                            SequentialAnimation on height {
+                                loops: Animation.Infinite
+                                PauseAnimation  { duration: 300 }
+                                PropertyAnimation { from: 10; to: 44; duration: 400; easing.type: Easing.InOutQuad }
+                                PropertyAnimation { from: 44; to: 10; duration: 400; easing.type: Easing.InOutQuad }
+                            }
+                        }
+                        Rectangle {
+                            width: 6; height: 22; radius: 3; color: "#16a34a"
+                            SequentialAnimation on height {
+                                loops: Animation.Infinite
+                                PauseAnimation  { duration: 450 }
+                                PropertyAnimation { from: 10; to: 44; duration: 400; easing.type: Easing.InOutQuad }
+                                PropertyAnimation { from: 44; to: 10; duration: 400; easing.type: Easing.InOutQuad }
+                            }
+                        }
+                    }
                 }
 
+                // 文字
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter
-                    text: controlCard.isRunning ? "暂停测试" : "开始测试"
-                    font.pixelSize: 18
-                    font.bold: true
-                    font.capitalization: Font.AllUppercase
-                    color: controlCard.isRunning ? "white" : "#94a3b8"
+                    font.pixelSize: 18; font.bold: true
+                    text: {
+                        switch (controlCard.testPhase) {
+                            case "idle":    return "开始测试"
+                            case "waiting": return "等待连接"
+                            case "testing": return "正在测试"
+                        }
+                    }
+                    color: {
+                        switch (controlCard.testPhase) {
+                            case "idle":    return "#94a3b8"
+                            case "waiting": return "#fbbf24"
+                            case "testing": return "#ffffff"
+                        }
+                    }
                 }
             }
 
@@ -233,16 +347,22 @@ Rectangle {
                 onClicked: controlCard.toggleTest()
             }
 
-            // 高亮外环（半透明）
+            // 高亮外环
             Rectangle {
                 anchors.fill: parent
                 radius: width / 2
                 color: "transparent"
                 border {
                     width: 8
-                    color: controlCard.isRunning ? "#22c55e" : "#1e293b"
+                    color: {
+                        switch (controlCard.testPhase) {
+                            case "idle":    return "#1e293b"
+                            case "waiting": return "#f59e0b"
+                            case "testing": return "#22c55e"
+                        }
+                    }
                 }
-                opacity: controlCard.isRunning ? 0.4 : 1.0
+                opacity: controlCard.testPhase === "idle" ? 1.0 : 0.5
             }
         }
 

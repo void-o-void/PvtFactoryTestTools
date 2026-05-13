@@ -17,7 +17,7 @@
     },
 
     "connect_serial": {
-        "com":"COM3",
+        "com":"COM6",
         "baud_rate": 921600,
         "stop_bits":  1,
         "parity_bits": 1
@@ -31,22 +31,22 @@
     },
 
     "env_items":[
-        {   "descr":"系统版本", "value":"P39_FACTORY_4G_HW1.0_202511201718_D", "type": "string", "sn": 0, "en_enum": false   },
-        {   "descr":"测试超时时间", "value":60, "type": "int", "en_enum": false, "sn": 1    },
-        {   "descr":"GPS卫星数量", "value":6, "type": "int", "en_enum": false, "sn": 2    },
-        {   "descr":"GPS信号阈值", "value":100, "type": "int", "en_enum": false, "sn": 3    },
-        {   "descr":"卡1-4G信号强度", "value":-200, "type": "int", "en_enum": false, "sn": 4    },
-        {   "descr":"卡2-4G信号强度", "value":-200, "type": "int", "en_enum": false, "sn": 5    },
-        {   "descr":"休眠电流阈值", "value":13, "type": "int", "en_enum": false, "sn": 6    },
-        {   "descr":"峰值电流阈值", "value":4000, "type": "int", "en_enum": false, "sn": 7    },
-        {   "descr":"电压阈值", "value":5, "type": "int", "en_enum": false, "sn": 8    },
-        {   "descr":"休眠超时时间", "value":120, "type": "int", "en_enum": false, "sn": 9    },
-        {   "descr":"连接电脑IP", "value":20, "type": "int", "en_enum": false, "sn": 10    },
-        {   "descr":"自动复测次数", "value":2, "type": "int", "en_enum": false, "sn": 11    },
-        {   "descr":"WIFI名称", "value":"123456", "type": "string", "en_enum": false, "sn": 12    },
-        {   "descr":"WIFI强度阈值", "value":-60, "type": "int", "en_enum": false, "sn": 13    },
-        {   "descr":"蓝牙名称", "value":"hcsbt3", "type": "string", "en_enum": false, "sn": 14    },
-        {   "descr":"蓝牙Rssi阈值", "value":-110, "type": "int", "en_enum": false, "sn": 15    }
+        {   "name":"systemVersion", "descr":"系统版本", "value":"P39_FACTORY_4G_HW1.0_202511201718_D", "type": "string", "sn": 0, "en_enum": false },
+        {   "name":"testTimeOut", "descr":"测试超时时间", "value":60, "type": "int", "en_enum": false, "sn": 1    },
+        {   "name":"satelliteCount", "descr":"GPS卫星数量", "value":6, "type": "int", "en_enum": false, "sn": 2    },
+        {   "name":"cnDbHz", "descr":"GPS信号阈值", "value":100, "type": "int", "en_enum": false, "sn": 3    },
+        {   "name":"signalStrength", "descr":"卡1-4G信号强度", "value":-200, "type": "int", "en_enum": false, "sn": 4    },
+        {   "name":"signalStrength2", "descr":"卡2-4G信号强度", "value":-200, "type": "int", "en_enum": false, "sn": 5    },
+        {   "name":"sleepCurrentThreshold", "descr":"休眠电流阈值", "value":13, "type": "int", "en_enum": false, "sn": 6    },
+        {   "name":"peakCurrentThreshold", "descr":"峰值电流阈值", "value":4000, "type": "int", "en_enum": false, "sn": 7    },
+        {   "name":"voltageThreshold", "descr":"电压阈值", "value":5, "type": "int", "en_enum": false, "sn": 8    },
+        {   "name":"sleepCurrentTimeout", "descr":"休眠超时时间", "value":120, "type": "int", "en_enum": false, "sn": 9    },
+        {   "name":"PCIETestIp", "descr":"连接电脑IP", "value":20, "type": "int", "en_enum": false, "sn": 10    },
+        {   "name":"retestCount", "descr":"自动复测次数", "value":2, "type": "int", "en_enum": false, "sn": 11    },
+        {   "name":"wifiName", "descr":"WIFI名称", "value":"123456", "type": "string", "en_enum": false, "sn": 12    },
+        {   "name":"wifiLevel", "descr":"WIFI强度阈值", "value":-60, "type": "int", "en_enum": false, "sn": 13    },
+        {   "name":"btName", "descr":"蓝牙名称", "value":"hcsbt3", "type": "string", "en_enum": false, "sn": 14    },
+        {   "name":"btRssi", "descr":"蓝牙Rssi阈值", "value":-110, "type": "int", "en_enum": false, "sn": 15    }
     ],
 
     "test_items": [

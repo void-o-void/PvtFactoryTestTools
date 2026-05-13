@@ -21,10 +21,9 @@
 
 // ---------- 功能码 ----------
 namespace MsgFuncCode {
-    constexpr uint8_t HANDSHAKE        = 0x01;   // 设备 → 上位机
+    constexpr uint8_t HANDSHAKE        = 0x64;   // 设备 → 上位机
     constexpr uint8_t TEST_RESULT      = 0x02;   // 设备 → 上位机
     constexpr uint8_t DEVICE_STATUS    = 0x03;   // 设备 → 上位机
-    constexpr uint8_t CMD_START_TEST   = 0x80;   // 上位机 → 设备（保留）
     constexpr uint8_t CMD_CFG_PARAM    = 0x81;   // 上位机 → 设备
     constexpr uint8_t CMD_TEST_LIST    = 0x82;   // 上位机 → 设备
 }
@@ -38,7 +37,7 @@ public:
     enum TestState {
         Disconnect,
         Standby,
-        Busy            // 测试进行中（包括等待握手、等待测试结果）
+        Busy
     };
     Q_ENUM(TestState)
 
@@ -115,7 +114,7 @@ public:
 
         // m_flowController->loadTestPlan(plan);
         // m_flowController->startAll();          // 立即启动所有定时器！
-        m_handshakeDone = false;               // 标记握手尚未发生
+
         m_state = Busy;
         emit stateChanged(m_state);
     }
@@ -123,7 +122,7 @@ public:
     Q_INVOKABLE void restart() {
         if (m_state != Busy) return;
         m_flowController->restartAll();
-        m_handshakeDone = false;               // 重新测试需要重新握手
+
         // 状态仍为 Busy
         emit stateChanged(m_state);
     }
@@ -144,6 +143,7 @@ public:
 
 signals:
     void stateChanged(int state);
+    void handshakeDone();                  // 收到设备握手，通知 QML 切换按钮状态
     void responseReceived(int configId);   // 内部跨线程
 
 private:
@@ -172,64 +172,51 @@ private:
         disconnect();
     }
 
-    // 工作线程中的消息处理（状态机）
     void handleMsg(const MessageEntity &msg) {
-        if (msg.data_len < 1 || msg.data.empty()) return;
-        uint8_t func = msg.data[0];
+        if ( msg.data_len < 1 || msg.data == nullptr || m_state.load() == Disconnect) {
+            return;
+        }
+        std::string buf(msg.data, msg.data_len);
+        CodeEntity* request_code = CFactoryTestProtocol::parseCodeEntity(buf);
+        if (request_code == nullptr) {
+            qDebug() << "handleMsg: parseCodeEntity error!";
+            return;
+        }
 
         switch (m_state.load()) {
-        case Disconnect:
-            break;
-        case Standby:
-            handleStandbyMsg(msg, func);
-            break;
-        case Busy:
-            handleBusyMsg(msg, func);
-            break;
+            case Standby:
+                if (request_code->code != MsgFuncCode::HANDSHAKE) {
+                    qDebug() << "收到错误消息, 请复位重新测试";
+                    return;
+                }
+                handleHandShake();
+                break;
+            case Busy:
+                handleBusyMsg(request_code);
+                break;
+            default: break;
         }
     }
 
-    void handleStandbyMsg(const MessageEntity &msg, uint8_t func) {
-        Q_UNUSED(msg); Q_UNUSED(func);
-        // 处理设备状态上报等
+    void handleHandShake() {
+        qDebug() << "收到设备握手";
+        emit handshakeDone();
     }
 
-    void handleBusyMsg(const MessageEntity &msg, uint8_t func) {
-        switch (func) {
-        case MsgFuncCode::HANDSHAKE:
-            if (!m_handshakeDone) {
-                m_handshakeDone = true;
-                qDebug() << "收到握手，下发配置和测试项列表";
+    void handleBusyMsg(CodeEntity* request) {
+        switch (request->code) {
+            case MsgFuncCode::HANDSHAKE:
+                qDebug() << "Busy 状态收到握手";
+                emit handshakeDone();
+                break;
+            case MsgFuncCode::TEST_RESULT:
+                qDebug() << "测项结果上报";
+                break;
+            case MsgFuncCode::DEVICE_STATUS:
+                qDebug() << "设备状态上报";
+                break;
 
-                // 构造并发送测试参数配置
-                MessageEntity cfgMsg;
-                cfgMsg.index = 0;
-                cfgMsg.type  = 0;
-                cfgMsg.data  = { static_cast<uint8_t>(MsgFuncCode::CMD_CFG_PARAM), 0 };
-                cfgMsg.data_len = static_cast<short>(cfgMsg.data.size());
-                m_connect_protocol->push(cfgMsg);
-
-                // 构造并发送测试项列表
-                MessageEntity listMsg;
-                listMsg.index = 0;
-                listMsg.type  = 0;
-                listMsg.data  = { static_cast<uint8_t>(MsgFuncCode::CMD_TEST_LIST), 0 };
-                listMsg.data_len = static_cast<short>(listMsg.data.size());
-                m_connect_protocol->push(listMsg);
-            }
-            break;
-
-        case MsgFuncCode::TEST_RESULT:
-            // 假设 msg.index 就是测试项 id
-            emit responseReceived(msg.index);
-            break;
-
-        case MsgFuncCode::DEVICE_STATUS:
-            qDebug() << "设备状态上报";
-            break;
-
-        default:
-            break;
+            default: break;
         }
     }
 
@@ -240,8 +227,6 @@ private:
 
     std::thread m_worker;
     std::atomic<bool> m_working{false};
-
-    bool m_handshakeDone = false;   // 是否已发送过配置和列表
 };
 
 #endif // FACTORYTESTMODULE_TEST_MANAGE_H

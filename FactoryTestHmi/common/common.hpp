@@ -45,7 +45,7 @@ typedef struct {
     uint8_t index;
     uint8_t type;
     short data_len;
-    std::vector<uint8_t> data;   // RAII 自动管理内存
+    char* data;   // RAII 自动管理内存
 } MessageEntity;
 
 #define DECLARE_SINGLETON(ClassName) \

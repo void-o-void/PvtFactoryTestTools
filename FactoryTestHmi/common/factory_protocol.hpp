@@ -5,8 +5,6 @@
 #ifndef SIMPLEPROTOCOL_CFACTORYTESTPROTOCOL_H
 #define SIMPLEPROTOCOL_CFACTORYTESTPROTOCOL_H
 
-#include <iostream>
-
 #include "ProtocolCore.hpp"
 #include "common.hpp"
 
@@ -178,11 +176,10 @@ protected:
     MessageEntity decode(SDataPacket &packet) override {
         MessageEntity msg;
         msg.index = packet.fundata[0];
-        msg.type  = packet.fundata[3];
-        // 使用 vector 接管数据，避免手动 new/delete 泄漏
-        int body_len = packet.data_len - 1;
-        msg.data.assign(packet.data, packet.data + body_len);
-        msg.data_len = static_cast<short>(body_len);
+        msg.type = packet.fundata[3];
+        msg.data = new char[packet.data_len-1];
+        memcpy(msg.data, packet.data, packet.data_len-1);
+        msg.data_len = packet.data_len-1;
 
         std::string buf("aa 55 " + CUtils::formatHexToStr(packet.fundata, 4) + " ");
         buf += CUtils::formatHexToStr(packet.data, packet.data_len);
@@ -211,7 +208,7 @@ protected:
         encoded[5] = msg.type & 0xFF; // type
 
         // 复制数据部分
-        memcpy(encoded + HEAD + INDEX + DATA_LENGTH + TYPE, msg.data.data(), data_len);
+        memcpy(encoded + HEAD + INDEX + DATA_LENGTH + TYPE, msg.data, data_len);
 
         // 计算校验和 (从索引开始到数据结束)
         uint8_t checksum = 0;
