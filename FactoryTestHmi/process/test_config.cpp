@@ -49,14 +49,14 @@ SSerialConfig Config::debugSerial() const {
     return cfg;
 }
 
-QMap<QString, SEnvItem> Config::envItems() const {
-    QMap<QString, SEnvItem> map;
+QList<SEnvItem> Config::envItems() const {
+    QList<SEnvItem> list;
     QJsonArray arr = rootObj()["env_items"].toArray();
     for (const auto& val : arr) {
         SEnvItem item(val.toObject());
-        map.insert(item.descr, item);
+        list.append(item);
     }
-    return map;
+    return list;
 }
 
 QVector<TestConfigItem> Config::allTestItems() const {
@@ -77,12 +77,12 @@ QVector<TestRunItem> Config::enabledTestPlan() const {
         if (!cfg.value) continue;
 
         TestRunItem ti;
-        ti.id          = cfg.code;
+        ti.code        = cfg.code;
         ti.name        = cfg.descr;
         ti.testCode    = QString::number(cfg.code);
-        ti.status      = "waiting";
-        ti.duration    = "0s";
-        ti.message     = "等待测试";
+        ti.status      = "idle";
+        ti.duration    = "--";
+        ti.message     = "未开始";
         ti.result      = "--";
         ti.timeoutMs   = cfg.timeout * 1000;
         ti.maxRetries  = cfg.retries;

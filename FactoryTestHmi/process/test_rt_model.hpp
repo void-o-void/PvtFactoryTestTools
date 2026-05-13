@@ -14,6 +14,7 @@
 #include "common.hpp"
 #include "uicommon.hpp"
 struct TestRunItem {
+    int    code = 0;        // 测试项编码，唯一标识（对应 TestConfigItem::code）
     QString name;
     QString testCode;
     QString status;
@@ -64,7 +65,6 @@ public:
     // 业务接口
     Q_INVOKABLE void loadTestItems(const QVector<TestRunItem> &items);
     Q_INVOKABLE void updateTestValues(int row, const QString &status,const QString &duration,const QString &message,const QString &result);
-    Q_INVOKABLE void regenerateData();
 
     void reset() {
         set_state(1);

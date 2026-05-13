@@ -59,6 +59,7 @@ struct SStationConfig {
 };
 
 struct SEnvItem {
+    QString name;
     QString descr= "";
     QString type;
     QString value;
@@ -70,6 +71,7 @@ struct SEnvItem {
     SEnvItem(const QJsonObject& obj) { fromJson(obj); }
 
     void fromJson(const QJsonObject& obj) {
+        name = obj["name"].toString();
         descr = obj["descr"].toString();
         type = obj["type"].toString();
         sn = obj["sn"].toInt();
@@ -128,7 +130,7 @@ public:
     [[nodiscard]] SSerialConfig debugSerial() const;
 
     // 环境变量
-    [[nodiscard]] QMap<QString, SEnvItem> envItems() const;
+    [[nodiscard]] QList<SEnvItem> envItems() const;
 
     // 全量测试项（配置界面用）
     [[nodiscard]] QVector<TestConfigItem> allTestItems() const;

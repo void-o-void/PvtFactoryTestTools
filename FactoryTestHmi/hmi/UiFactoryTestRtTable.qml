@@ -93,10 +93,10 @@ Rectangle {
             }
 
             delegate: Item {
-                // 行背景
+                // 行背景（所有状态统一，无切换突兀感）
                 Rectangle {
                     anchors.fill: parent
-                    color: model.status === "processing" ? "#0a1628" : "transparent"
+                    color: "transparent"
                 }
                 // 行底边线
                 Rectangle {
@@ -105,38 +105,101 @@ Rectangle {
                     color: "#1e293b"
                 }
 
-                // ===== 状态列：图标 + 文字 =====
+                // ===== 状态列：4 状态图标 + 文字 =====
                 RowLayout {
                     anchors.centerIn: parent
                     visible: column === 3
                     spacing: 6
 
+                    // --- idle：灰色空心圆 + 横线 ---
                     Rectangle {
-                        visible: model.status === "finished"
-                        width: 18; height: 18; radius: 9; color: "#22c55e"
-                        Text { anchors.centerIn: parent; text: "✓"; color: "white"; font.pixelSize: 11; font.weight: Font.Bold }
-                    }
-                    Text {
-                        visible: model.status === "processing"
-                        width: 18; height: 18; text: "\u27F3"
-                        horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
-                        font.pixelSize: 16; color: "#3b82f6"
-                        RotationAnimator on rotation {
-                            from: 0; to: 360; duration: 1000; loops: Animation.Infinite
-                            running: model.status === "processing"
+                        visible: model.status === "idle"
+                        width: 18; height: 18; radius: 9
+                        color: "transparent"
+                        border { color: "#475569"; width: 1.5 }
+                        Rectangle {
+                            anchors.centerIn: parent
+                            width: 6; height: 1.5; radius: 1; color: "#475569"
                         }
                     }
-                    Rectangle {
-                        visible: model.status === "waiting"
-                        width: 18; height: 18; radius: 9; color: "transparent"
-                        border { color: "#475569"; width: 1.5 }
-                        Text { anchors.centerIn: parent; text: "⏳"; font.pixelSize: 10; color: "#64748b" }
-                    }
+
+                    // --- standby：沙漏 ---
                     Text {
-                        text: model.status === "finished" ? "已完成" :
-                              model.status === "processing" ? "进行中" : "等待中"
-                        color: model.status === "finished" ? "#22c55e" :
-                               model.status === "processing" ? "#3b82f6" : "#64748b"
+                        visible: model.status === "standby"
+                        width: 18; height: 18
+                        text: "\u23F3"
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                        font.pixelSize: 14; color: "#f59e0b"
+                    }
+
+                    // --- processing：绿色旋转圆环 ---
+                    Canvas {
+                        visible: model.status === "processing"
+                        width: 18; height: 18
+                        RotationAnimator on rotation {
+                            from: 0; to: 360; duration: 800; loops: Animation.Infinite
+                            running: model.status === "processing"
+                        }
+                        onPaint: {
+                            var ctx = getContext("2d")
+                            ctx.clearRect(0, 0, width, height)
+                            ctx.strokeStyle = "#22c55e"
+                            ctx.lineWidth = 2
+                            ctx.lineCap = "round"
+                            ctx.beginPath()
+                            ctx.arc(9, 9, 6, Math.PI * 1.2, Math.PI * 0.8)
+                            ctx.stroke()
+                        }
+                        Component.onCompleted: requestPaint()
+                    }
+
+                    // --- finished PASS：绿色圆 + ✓ ---
+                    Rectangle {
+                        visible: model.status === "finished" && model.result === "pass"
+                        width: 18; height: 18; radius: 9; color: "#166534"
+                        border { color: "#22c55e"; width: 1 }
+                        Text {
+                            anchors.centerIn: parent
+                            text: "\u2713"; color: "#22c55e"
+                            font.pixelSize: 11; font.weight: Font.Bold
+                        }
+                    }
+
+                    // --- finished FAIL：红色圆 + ✗ ---
+                    Rectangle {
+                        visible: model.status === "finished" && model.result === "fail"
+                        width: 18; height: 18; radius: 9; color: "#7f1d1d"
+                        border { color: "#ef4444"; width: 1 }
+                        Text {
+                            anchors.centerIn: parent
+                            text: "\u2717"; color: "#ef4444"
+                            font.pixelSize: 11; font.weight: Font.Bold
+                        }
+                    }
+
+                    // 文字
+                    Text {
+                        text: {
+                            switch (model.status) {
+                                case "idle":       return "未开始"
+                                case "standby":    return "待测试"
+                                case "processing": return "测试中"
+                                case "finished":
+                                    return model.result === "pass" ? "测试通过" : "测试不通过"
+                            }
+                            return ""
+                        }
+                        color: {
+                            switch (model.status) {
+                                case "idle":       return "#64748b"
+                                case "standby":    return "#f59e0b"
+                                case "processing": return "#22c55e"
+                                case "finished":
+                                    return model.result === "pass" ? "#22c55e" : "#ef4444"
+                            }
+                            return "#64748b"
+                        }
                         font.pixelSize: 14
                     }
                 }

@@ -19,37 +19,38 @@ public:
         Q_ASSERT(m_model);
     }
 
-    // 加载计划并初始化界面状态（尚未开始计时）
+    // 加载计划（items 已带初始 idle/未开始，此处只设运行时字段）
     void loadTestPlan(const QVector<TestRunItem> &items) {
         if (m_running) stopAll();
         clearAll();
 
         m_model->loadTestItems(items);
 
-        // 初始状态：未测试
         for (int row = 0; row < m_model->m_items.size(); ++row) {
-
-
-
-
             m_model->m_items[row].currentRetry = 0;
             m_model->m_items[row].active = false;
-            m_model->updateTestValues(row, "waiting", "0s", "等待开始", "--");
         }
         m_model->set_total_num(QString::number(m_model->m_items.size()));
         m_model->set_pass_num("0");
         m_model->set_fail_num("0");
         m_model->set_untest_num(QString::number(m_model->m_items.size()));
 
-        // 建立 id -> 行号映射
-        m_idToRow.clear();
+        // 建立 code → 行号映射
+        m_codeToRow.clear();
         for (int i = 0; i < m_model->m_items.size(); ++i) {
-            m_idToRow[m_model->m_items[i].id] = i;
+            m_codeToRow[m_model->m_items[i].code] = i;
         }
     }
 
-    // 立即启动所有测试项的定时器（由 TestManage 在开始测试时调用）
-    void startAll() {
+    // 点击开始后、握手前：所有项 → 待测试
+    void setAllStandby() {
+        for (int row = 0; row < m_model->m_items.size(); ++row) {
+            m_model->updateTestValues(row, "standby", "--", "待测试", "--");
+        }
+    }
+
+    // 立即启动所有测试项的定时器（通过 QueuedConnection 跨线程安全调用）
+    Q_INVOKABLE void startAll() {
         if (m_running) return;
         if (m_model->m_items.isEmpty()) return;
 
@@ -77,9 +78,9 @@ public:
         for (auto &item : m_model->m_items) {
             if (item.active) {
                 item.active = false;
-                int row = m_idToRow.value(item.id, -1);
+                int row = m_codeToRow.value(item.code, -1);
                 if (row >= 0)
-                    m_model->updateTestValues(row, "stopped", "0s", "测试已停止", "STOP");
+                    m_model->updateTestValues(row, "stopped", "--", "测试已停止", "--");
             }
         }
         emit allItemsFinished();
@@ -92,9 +93,9 @@ public:
         for (auto &item : m_model->m_items) {
             item.currentRetry = 0;
             item.active = false;
-            int row = m_idToRow.value(item.id, -1);
+            int row = m_codeToRow.value(item.code, -1);
             if (row >= 0)
-                m_model->updateTestValues(row, "waiting", "0s", "等待开始", "--");
+                m_model->updateTestValues(row, "waiting", "--", "等待开始", "--");
         }
         startAll();
     }
@@ -107,23 +108,25 @@ public:
     }
 
 public slots:
-    // 收到测试结果（从 TestManage 跨线程调用）
-    void onResponseReceived(int configId) {
+    // 收到测试结果（从 TestManage 跨线程调用，携带结果详情）
+    void onItemResultReceived(int code, int state, const QString &msg) {
         if (!m_running) return;
 
-        int row = m_idToRow.value(configId, -1);
+        int row = m_codeToRow.value(code, -1);
         if (row < 0) return;
 
         TestRunItem &item = m_model->m_items[row];
-        if (!item.active) return;   // 已经超时或结束，忽略迟到的回复
+        if (!item.active) return;
 
-        // 停止本项定时器
-        stopTimerForItem(configId);
+        stopTimerForItem(code);
         item.active = false;
 
-        // 成功
-        m_model->updateTestValues(row, "pass", "1.5s", "测试通过", "PASS");
-        emit itemFinished(configId, true);
+        bool pass = (state == 1);
+        QString result = pass ? "pass" : "fail";
+        QString message = msg.isEmpty() ? (pass ? "测试通过" : "测试失败") : msg;
+
+        m_model->updateTestValues(row, "finished", "--", message, result);
+        emit itemFinished(code, pass);
         checkAllFinished();
     }
 
@@ -141,15 +144,15 @@ private:
         // 创建超时定时器
         auto *timer = new QTimer(this);
         timer->setSingleShot(true);
-        timer->setProperty("configId", item.id);
-        connect(timer, &QTimer::timeout, this, [this, id = item.id]() {
-            onTimeout(id);
+        timer->setProperty("configId", item.code);
+        connect(timer, &QTimer::timeout, this, [this, code = item.code]() {
+            onTimeout(code);
         });
         timer->start(item.timeoutMs);
-        m_timers[item.id] = timer;
+        m_timers[item.code] = timer;
 
-        // 更新界面：“正在测试”
-        m_model->updateTestValues(row, "testing", "0s",
+        // 更新界面：QML 动画依赖 status == "processing"
+        m_model->updateTestValues(row, "processing", "--",
                                   QString("第 %1 次测试中...").arg(item.currentRetry + 1),
                                   "--");
     }
@@ -157,7 +160,7 @@ private:
     void onTimeout(int configId) {
         if (!m_running) return;
 
-        int row = m_idToRow.value(configId, -1);
+        int row = m_codeToRow.value(configId, -1);
         if (row < 0) return;
 
         TestRunItem &item = m_model->m_items[row];
@@ -171,8 +174,8 @@ private:
             item.currentRetry++;
             startAttempt(row);
         } else {
-            // 最终失败
-            m_model->updateTestValues(row, "fail", "--", "超时未回复", "FAIL");
+            // 最终失败：status 用 "finished"，result 用 "fail"
+            m_model->updateTestValues(row, "finished", "--", "超时未回复", "fail");
             emit itemFinished(configId, false);
             checkAllFinished();
         }
@@ -199,13 +202,13 @@ private:
         for (auto *timer : m_timers)
             timer->deleteLater();
         m_timers.clear();
-        m_idToRow.clear();
+        m_codeToRow.clear();
         m_running = false;
     }
 
     RtModel *m_model;
-    QHash<int, QTimer *> m_timers;   // configId → 定时器
-    QHash<int, int> m_idToRow;       // configId → 行号
+    QHash<int, QTimer *> m_timers;   // code → 定时器
+    QHash<int, int> m_codeToRow;     // code → 行号
     bool m_running = false;
 };
 
