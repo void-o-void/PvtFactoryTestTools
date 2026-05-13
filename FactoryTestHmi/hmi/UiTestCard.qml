@@ -6,8 +6,9 @@ Rectangle {
     id: controlCard       // 更安全的 id，避免与 root 保留属性冲突
 
     // ---------- 公开状态 ----------
-    // testPhase: "idle" → 空闲  /  "waiting" → 等待连接  /  "testing" → 正在测试
+    // testPhase: "idle"/"waiting"/"testing"/"finished"
     property string testPhase: "idle"
+    property string testResult: ""       // "PASS" or "FAIL"
     property bool handshakeReceived: false
     property int elapsedMs: 0
 
@@ -26,15 +27,17 @@ Rectangle {
         if (testPhase === "idle") {
             elapsedMs = 0
             handshakeReceived = false
+            testResult = ""
             testManage.start()
             testPhase = "waiting"
         } else if (testPhase === "waiting") {
-            // 取消等待，回到空闲
             handshakeReceived = false
             testPhase = "idle"
         } else if (testPhase === "testing") {
-            // 停止测试
             handshakeReceived = false
+            testPhase = "idle"
+        } else if (testPhase === "finished") {
+            testResult = ""
             testPhase = "idle"
         }
     }
@@ -47,14 +50,19 @@ Rectangle {
                 controlCard.testPhase = "idle"
                 controlCard.handshakeReceived = false
             } else if (state === 1) {   // Standby
-                controlCard.testPhase = "idle"
-                controlCard.handshakeReceived = false
+                if (controlCard.testPhase !== "finished") {
+                    controlCard.testPhase = "idle"
+                    controlCard.handshakeReceived = false
+                }
             }
-            // Busy(2) 由 start() 触发时已在 toggleTest 中设为 waiting
         }
         function onHandshakeDone() {
             controlCard.handshakeReceived = true
             controlCard.testPhase = "testing"
+        }
+        function onTestFinished(failCount) {
+            controlCard.testResult = (failCount === 0) ? "PASS" : "FAIL"
+            controlCard.testPhase = "finished"
         }
     }
 
@@ -197,6 +205,16 @@ Rectangle {
                         // 等待连接：琥珀色
                         grad.addColorStop(0, "#f59e0b")
                         grad.addColorStop(1, "#78350f")
+                    } else if (controlCard.testPhase === "finished") {
+                        if (controlCard.testResult === "PASS") {
+                            // 测试通过：翠绿
+                            grad.addColorStop(0, "#22c55e")
+                            grad.addColorStop(1, "#064e3b")
+                        } else {
+                            // 测试失败：红色
+                            grad.addColorStop(0, "#ef4444")
+                            grad.addColorStop(1, "#7f1d1d")
+                        }
                     } else {
                         // 空闲：暗色
                         grad.addColorStop(0, "#1e293b")
@@ -316,6 +334,44 @@ Rectangle {
                             }
                         }
                     }
+
+                    // --- 测试完成：PASS ✓ / FAIL ✗ ---
+                    Canvas {
+                        anchors.centerIn: parent
+                        visible: controlCard.testPhase === "finished"
+                        width: 60; height: 60
+                        property bool pass: controlCard.testResult === "PASS"
+                        onPassChanged: requestPaint()
+                        Component.onCompleted: requestPaint()
+                        onPaint: {
+                            var ctx = getContext("2d")
+                            ctx.clearRect(0, 0, width, height)
+                            var c = controlCard.testResult === "PASS" ? "#4ade80" : "#f87171"
+                            ctx.strokeStyle = c
+                            ctx.lineWidth = 5
+                            ctx.lineCap = "round"
+                            ctx.lineJoin = "round"
+
+                            if (controlCard.testResult === "PASS") {
+                                // 对勾 ✓
+                                ctx.beginPath()
+                                ctx.moveTo(8, 32)
+                                ctx.lineTo(24, 50)
+                                ctx.lineTo(52, 14)
+                                ctx.stroke()
+                            } else {
+                                // 叉号 ✗
+                                ctx.beginPath()
+                                ctx.moveTo(14, 14)
+                                ctx.lineTo(46, 46)
+                                ctx.stroke()
+                                ctx.beginPath()
+                                ctx.moveTo(46, 14)
+                                ctx.lineTo(14, 46)
+                                ctx.stroke()
+                            }
+                        }
+                    }
                 }
 
                 // 文字
@@ -327,6 +383,7 @@ Rectangle {
                             case "idle":    return "开始测试"
                             case "waiting": return "等待连接"
                             case "testing": return "正在测试"
+                            case "finished": return "测试完成"
                         }
                     }
                     color: {
@@ -334,8 +391,20 @@ Rectangle {
                             case "idle":    return "#94a3b8"
                             case "waiting": return "#fbbf24"
                             case "testing": return "#ffffff"
+                            case "finished":
+                                return controlCard.testResult === "PASS" ? "#4ade80" : "#f87171"
                         }
                     }
+                }
+
+                // 结果标签（仅 finished 状态显示）
+                Text {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    visible: controlCard.testPhase === "finished"
+                    text: controlCard.testResult
+                    font.pixelSize: 14
+                    font.letterSpacing: 3
+                    color: controlCard.testResult === "PASS" ? "#22c55e" : "#ef4444"
                 }
             }
 
@@ -359,6 +428,8 @@ Rectangle {
                             case "idle":    return "#1e293b"
                             case "waiting": return "#f59e0b"
                             case "testing": return "#22c55e"
+                            case "finished":
+                                return controlCard.testResult === "PASS" ? "#22c55e" : "#ef4444"
                         }
                     }
                 }

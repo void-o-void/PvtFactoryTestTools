@@ -28,6 +28,10 @@ public:
 
         // 初始状态：未测试
         for (int row = 0; row < m_model->m_items.size(); ++row) {
+
+
+
+
             m_model->m_items[row].currentRetry = 0;
             m_model->m_items[row].active = false;
             m_model->updateTestValues(row, "waiting", "0s", "等待开始", "--");

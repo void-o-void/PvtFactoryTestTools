@@ -78,7 +78,7 @@ public:
             }
         });
 
-        m_state = Standby;
+        m_state = Disconnect;
         emit stateChanged(m_state);
         return true;
     }
@@ -101,21 +101,15 @@ public:
     }
 
     Q_INVOKABLE void start() {
-        if (m_state != Standby) {
+        if (m_state != Disconnect) {
             return;
         }
 
-        //QVector<TestItem> plan = Config::instance()->currentTestPlan();
-        // QVector<TestRunItem> plan;
-        // if (plan.isEmpty()) {
-        //     qWarning() << "Test plan is empty";
-        //     return;
-        // }
+        QVector<TestRunItem> plan = Config::instance()->enabledTestPlan();
+        m_flowController->loadTestPlan(plan);
+        m_flowController->startAll(); // 立即启动所有定时器！
 
-        // m_flowController->loadTestPlan(plan);
-        // m_flowController->startAll();          // 立即启动所有定时器！
-
-        m_state = Busy;
+        m_state = Standby;
         emit stateChanged(m_state);
     }
 
@@ -144,6 +138,7 @@ public:
 signals:
     void stateChanged(int state);
     void handshakeDone();                  // 收到设备握手，通知 QML 切换按钮状态
+    void testFinished(int failCount);      // 测试全部完成，failCount=0 表示全部通过
     void responseReceived(int configId);   // 内部跨线程
 
 private:
@@ -154,18 +149,20 @@ private:
         // 跨线程：工作线程 → 主线程
         QObject::connect(this, &TestManage::responseReceived, m_flowController, &TestFlowController::onResponseReceived,Qt::QueuedConnection);
 
-        // 所有测试项完成，自动切回 Standby
+        // 所有测试项完成，通知 QML 结果后切回 Standby
         QObject::connect(m_flowController, &TestFlowController::allItemsFinished, this, [this]() {
             if (m_state == Busy) {
+                int fail = m_rt->fail_num().toInt();
+                emit testFinished(fail);
+                qDebug() << "所有测试项已完成" << (fail == 0 ? "PASS" : "FAIL");
                 m_state = Standby;
                 emit stateChanged(m_state);
-                qDebug() << "所有测试项已完成，返回 Standby";
             }
         });
 
         m_state = Disconnect;
         this->connect();
-        start();
+        // 不在此处 start()，由 QML 按钮点击时调用 start() 进入 Busy
     }
 
     ~TestManage() {
@@ -199,23 +196,20 @@ private:
     }
 
     void handleHandShake() {
-        qDebug() << "收到设备握手";
+        qDebug() << "Standby 状态收到设备握手";
         emit handshakeDone();
+        sleep(5);
+        emit testFinished(0);
     }
 
     void handleBusyMsg(CodeEntity* request) {
         switch (request->code) {
-            case MsgFuncCode::HANDSHAKE:
-                qDebug() << "Busy 状态收到握手";
-                emit handshakeDone();
-                break;
             case MsgFuncCode::TEST_RESULT:
                 qDebug() << "测项结果上报";
                 break;
             case MsgFuncCode::DEVICE_STATUS:
                 qDebug() << "设备状态上报";
                 break;
-
             default: break;
         }
     }

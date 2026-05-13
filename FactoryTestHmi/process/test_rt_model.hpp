@@ -14,7 +14,6 @@
 #include "common.hpp"
 #include "uicommon.hpp"
 struct TestRunItem {
-    int    id;
     QString name;
     QString testCode;
     QString status;
