@@ -43,16 +43,7 @@ public:
     };
     Q_ENUM(TestState)
 
-    Q_INVOKABLE bool connect();
-
-    Q_INVOKABLE void disconnect();
-
     Q_INVOKABLE void start();
-
-    Q_INVOKABLE void restart();
-
-    Q_INVOKABLE void stop();
-
     Q_INVOKABLE void reset();
 
 signals:
@@ -64,13 +55,12 @@ signals:
 
 private:
     TestManage();
-
     ~TestManage();
 
+    void openSerial();
     void handleMsg(const MessageEntity &msg);
     void handleHandShake();
     void handleBusyMsg(CodeEntity* request);
-
     void sendCodeMessage(int code, const QJsonObject& paraObj);
 
     std::atomic<TestState> m_state{Idle};

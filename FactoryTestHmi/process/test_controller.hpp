@@ -19,9 +19,9 @@ public:
         Q_ASSERT(m_model);
     }
 
-    // 加载计划（items 已带初始 idle/未开始，此处只设运行时字段）
+    // 加载计划（items 已带初始 idle/未开始）
     void loadTestPlan(const QVector<TestRunItem> &items) {
-        if (m_running) stopAll();
+        stopAllTimers();
         clearAll();
 
         m_model->loadTestItems(items);
@@ -35,7 +35,6 @@ public:
         m_model->set_fail_num("0");
         m_model->set_untest_num(QString::number(m_model->m_items.size()));
 
-        // 建立 code → 行号映射
         m_codeToRow.clear();
         for (int i = 0; i < m_model->m_items.size(); ++i) {
             m_codeToRow[m_model->m_items[i].code] = i;
@@ -49,62 +48,20 @@ public:
         }
     }
 
-    // 立即启动所有测试项的定时器（通过 QueuedConnection 跨线程安全调用）
+    // 启动所有定时器（通过 QueuedConnection 跨线程安全调用）
     Q_INVOKABLE void startAll() {
         if (m_running) return;
         if (m_model->m_items.isEmpty()) return;
-
         m_running = true;
-
-        // 为每个测试项启动第一次超时等待
         for (int row = 0; row < m_model->m_items.size(); ++row) {
             startAttempt(row);
         }
     }
 
-    // 停止（保留计划）
-    void stopAll() {
-        if (!m_running) return;
-        m_running = false;
-
-        // 停止并清理所有定时器
-        for (auto *timer : m_timers) {
-            timer->stop();
-            timer->deleteLater();
-        }
-        m_timers.clear();
-
-        // 将所有活跃项置为停止
-        for (auto &item : m_model->m_items) {
-            if (item.active) {
-                item.active = false;
-                int row = m_codeToRow.value(item.code, -1);
-                if (row >= 0)
-                    m_model->updateTestValues(row, "stopped", "--", "测试已停止", "--");
-            }
-        }
-        emit allItemsFinished();
-    }
-
-    // 重新测试同一批计划（立即重新开始定时器）
-    void restartAll() {
-        if (m_running) stopAll();
-        // 重置内部状态
-        for (auto &item : m_model->m_items) {
-            item.currentRetry = 0;
-            item.active = false;
-            int row = m_codeToRow.value(item.code, -1);
-            if (row >= 0)
-                m_model->updateTestValues(row, "waiting", "--", "等待开始", "--");
-        }
-        startAll();
-    }
-
-    // 完全复位（清空计划）
-    void resetAll() {
-        if (m_running) stopAll();
+    // 取消所有定时器，不发 allItemsFinished（供 reset 用）
+    void cancelAll() {
+        stopAllTimers();
         clearAll();
-        m_model->reset();   // 模型自身的复位
     }
 
 public slots:
@@ -190,18 +147,24 @@ private:
         emit allItemsFinished();
     }
 
-    void stopTimerForItem(int configId) {
-        if (m_timers.contains(configId)) {
-            m_timers[configId]->stop();
-            m_timers[configId]->deleteLater();
-            m_timers.remove(configId);
+    void stopTimerForItem(int code) {
+        if (m_timers.contains(code)) {
+            m_timers[code]->stop();
+            m_timers[code]->deleteLater();
+            m_timers.remove(code);
         }
     }
 
-    void clearAll() {
-        for (auto *timer : m_timers)
+    void stopAllTimers() {
+        for (auto *timer : m_timers) {
+            timer->stop();
             timer->deleteLater();
+        }
         m_timers.clear();
+        m_running = false;
+    }
+
+    void clearAll() {
         m_codeToRow.clear();
         m_running = false;
     }

@@ -3,15 +3,8 @@
 //
 #include "test_manage.hpp"
 
-bool TestManage::connect(){
-    if (m_state != Idle) {
-        return false;
-    }
-
-
-    m_working = false;
-    if (m_worker.joinable()) m_worker.join();
-
+// ==================== openSerial ====================
+void TestManage::openSerial() {
     if (m_connect_protocol) {
         m_connect_protocol->reset();
         delete m_connect_protocol;
@@ -20,17 +13,13 @@ bool TestManage::connect(){
 
     auto cfg = Config::instance();
     m_connect_protocol = new CFactoryTestProtocol(
-        new SerialChannel(cfg->connectSerial().com,static_cast<QSerialPort::BaudRate>(cfg->connectSerial().baud_rate)));
-    if (!m_connect_protocol->start()) {
-        delete m_connect_protocol;
-        m_connect_protocol = nullptr;
-        return false;
-    }
+        new SerialChannel(cfg->connectSerial().com,
+                          static_cast<QSerialPort::BaudRate>(cfg->connectSerial().baud_rate)));
+    m_connect_protocol->start();
 
     m_working = true;
     m_worker = std::thread([this]() {
         while (m_working) {
-            // 接收消息
             auto msg = m_connect_protocol->pull();
             if (msg.data_len > 3) {
                 handleMsg(msg);
@@ -39,74 +28,52 @@ bool TestManage::connect(){
             }
         }
     });
-
-    m_state = Idle;
-    emit stateChanged(m_state);
-    return true;
 }
 
-void TestManage::disconnect() {
-    if (m_state == Idle) return;
-    if (m_state == Busy) stop();
-
-    m_working = false;
-    if (m_worker.joinable()) m_worker.join();
-
-    if (m_connect_protocol) {
-        m_connect_protocol->reset();
-        delete m_connect_protocol;
-        m_connect_protocol = nullptr;
+// ==================== reset ====================
+void TestManage::reset() {
+    // 1. 取消全部定时器
+    if (m_flowController) {
+        m_flowController->cancelAll();
     }
 
+    // 2. 加载初始测试计划（表格回到 idle）
+    QVector<TestRunItem> plan = Config::instance()->enabledTestPlan();
+    m_flowController->loadTestPlan(plan);
+
+    // 3. 回到 Idle（工作线程照跑，但 Idle 状态会丢弃所有消息）
     m_state = Idle;
     emit stateChanged(m_state);
 }
 
-void TestManage::start(){
-    if (m_state != Idle) {
-        return;
-    }
+// ==================== start ====================
+void TestManage::start() {
+    if (m_state != Idle) return;
 
     QVector<TestRunItem> plan = Config::instance()->enabledTestPlan();
     m_flowController->loadTestPlan(plan);
-    m_flowController->setAllStandby();   // 表格显示"待测试"
+    m_flowController->setAllStandby();
 
     m_state = Standby;
     emit stateChanged(m_state);
 }
 
-void TestManage::restart() {
-    if (m_state != Busy) return;
-    m_flowController->restartAll();
-
-    // 状态仍为 Busy
-    emit stateChanged(m_state);
-}
-
-void TestManage::stop() {
-    if (m_state != Busy) return;
-    m_flowController->stopAll();
-    m_state = Standby;
-    emit stateChanged(m_state);
-}
-
-void TestManage::reset() {
-    if (m_state == Busy) stop();
-    m_flowController->resetAll();
-    m_state = Standby;
-    emit stateChanged(m_state);
-}
-
+// ==================== 构造 / 析构 ====================
 TestManage::TestManage() {
     m_rt = RtModel::instance();
     m_flowController = new TestFlowController(m_rt, this);
 
-    // 跨线程：工作线程 → 主线程
-    QObject::connect(this, &TestManage::startAllRequested, m_flowController, &TestFlowController::startAll, Qt::QueuedConnection);
-    QObject::connect(this, &TestManage::itemResultReceived, m_flowController, &TestFlowController::onItemResultReceived, Qt::QueuedConnection);
+    // 跨线程信号
+    QObject::connect(this, &TestManage::startAllRequested,
+                     m_flowController, &TestFlowController::startAll,
+                     Qt::QueuedConnection);
+    QObject::connect(this, &TestManage::itemResultReceived,
+                     m_flowController, &TestFlowController::onItemResultReceived,
+                     Qt::QueuedConnection);
 
-    // 所有测试项完成，通知 QML 结果后切回 Standby
-    QObject::connect(m_flowController, &TestFlowController::allItemsFinished, this, [this]() {
+    // 全部测试完成
+    QObject::connect(m_flowController, &TestFlowController::allItemsFinished,
+                     this, [this]() {
         if (m_state == Busy) {
             int fail = m_rt->fail_num().toInt();
             emit testFinished(fail);
@@ -116,17 +83,25 @@ TestManage::TestManage() {
         }
     });
 
-    m_state = Idle;
-    this->connect();
-    m_flowController->loadTestPlan(Config::instance()->enabledTestPlan());
+    // 初始化：打开串口（仅一次）、加载计划、进入 Idle
+    openSerial();
+    reset();
 }
 
 TestManage::~TestManage() {
-    disconnect();
+    m_working = false;
+    if (m_worker.joinable()) m_worker.join();
+
+    if (m_connect_protocol) {
+        m_connect_protocol->reset();
+        delete m_connect_protocol;
+        m_connect_protocol = nullptr;
+    }
 }
 
+// ==================== handleMsg ====================
 void TestManage::handleMsg(const MessageEntity &msg) {
-    if ( msg.data_len < 1 || msg.data == nullptr || m_state.load() == Idle) {
+    if (msg.data_len < 1 || msg.data == nullptr || m_state.load() == Idle) {
         return;
     }
     std::string buf(msg.data, msg.data_len);
@@ -151,29 +126,27 @@ void TestManage::handleMsg(const MessageEntity &msg) {
     }
 }
 
+// ==================== handleHandShake ====================
 void TestManage::handleHandShake() {
     qDebug() << "Standby 状态收到设备握手";
-    emit startAllRequested();             // 跨线程通知主线程创建定时器
-    auto envs =  Config::instance()->envItems();
+    emit startAllRequested();
+
+    auto envs = Config::instance()->envItems();
     QJsonObject obj;
     obj["code"] = 101;
 
-    // 构建 para 对象
     QJsonObject paraObj;
     for (auto& env : envs) {
         paraObj[env.name] = QString(env.value);
     }
 
-    // 将 para 对象序列化为 JSON 字符串
     QJsonDocument paraDoc(paraObj);
     QByteArray paraBytes = paraDoc.toJson(QJsonDocument::Compact);
 
-    // 构建数字数组
     QJsonArray paraArray;
     for (int i = 0; i < paraBytes.size(); ++i) {
         paraArray.append(static_cast<int>(static_cast<unsigned char>(paraBytes.at(i))));
     }
-
     obj["para"] = paraArray;
 
     QJsonDocument doc(obj);
@@ -187,14 +160,13 @@ void TestManage::handleHandShake() {
     m_connect_protocol->push(response_msg);
     sleep(2);
 
-    // ==================== 第二条消息：code = 102 ====================
+    // code = 102
     QList<int> item_codes;
     auto items = Config::instance()->enabledTestPlan();
     for (auto& item : items) {
         item_codes.append(item.code);
     }
 
-    // 将 item_codes 转成 JSON 数组字符串，如 "[200,202,203,...]"
     QJsonArray codeArray;
     for (int code : item_codes) {
         codeArray.append(code);
@@ -203,7 +175,6 @@ void TestManage::handleHandShake() {
     QByteArray codeBytes = codeDoc.toJson(QJsonDocument::Compact);
     QString paraString = QString::fromUtf8(codeBytes);
 
-    // 将字符串的 UTF-8 字节转成数字数组
     QByteArray paraUtf8 = paraString.toUtf8();
     QJsonArray paraArray102;
     for (int i = 0; i < paraUtf8.size(); ++i) {
@@ -223,10 +194,13 @@ void TestManage::handleHandShake() {
     msg102.data = strdup(bytes102.constData());
     msg102.data_len = bytes102.size();
     m_connect_protocol->push(msg102);
+
     m_state.store(Busy);
     emit stateChanged(m_state);
     emit handshakeDone();
 }
+
+// ==================== handleBusyMsg ====================
 void TestManage::handleBusyMsg(CodeEntity *request) {
     if (!request->common) return;
 
@@ -241,3 +215,27 @@ void TestManage::handleBusyMsg(CodeEntity *request) {
     emit itemResultReceived(request->code, state, msg);
 }
 
+// ==================== sendCodeMessage ====================
+void TestManage::sendCodeMessage(int code, const QJsonObject &paraObj) {
+    QJsonDocument paraDoc(paraObj);
+    QByteArray paraBytes = paraDoc.toJson(QJsonDocument::Compact);
+
+    QJsonArray paraArray;
+    for (int i = 0; i < paraBytes.size(); ++i) {
+        paraArray.append(static_cast<int>(static_cast<signed char>(paraBytes.at(i))));
+    }
+
+    QJsonObject obj;
+    obj["code"] = code;
+    obj["para"] = paraArray;
+
+    QJsonDocument doc(obj);
+    QByteArray bytes = doc.toJson(QJsonDocument::Compact);
+
+    MessageEntity response_msg;
+    response_msg.index = 0;
+    response_msg.type = 0;
+    response_msg.data = strdup(bytes.constData());
+    response_msg.data_len = bytes.size();
+    m_connect_protocol->push(response_msg);
+}

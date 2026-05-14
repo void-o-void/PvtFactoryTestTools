@@ -46,15 +46,19 @@ Rectangle {
     Connections {
         target: testManage
         function onStateChanged(state) {
-            if (state === 0) {          // Disconnect
+            if (state === 0) {          // Idle — reset 后回到空闲
                 controlCard.testPhase = "idle"
                 controlCard.handshakeReceived = false
-            } else if (state === 1) {   // Standby
+                controlCard.testResult = ""
+            } else if (state === 1) {   // Standby — 测试完成或 start 后
+                // finished 状态不被打断，等用户点击才回到 idle
                 if (controlCard.testPhase !== "finished") {
                     controlCard.testPhase = "idle"
                     controlCard.handshakeReceived = false
+                    controlCard.testResult = ""
                 }
             }
+            // Busy(2) 由 handleHandShake 触发后 QML 通过 handshakeDone 处理
         }
         function onHandshakeDone() {
             controlCard.handshakeReceived = true
