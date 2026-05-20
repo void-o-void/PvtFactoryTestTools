@@ -23,13 +23,10 @@ qt_policy(SET QTP0001 NEW)
 qt_policy(SET QTP0004 NEW)
 
 file(GLOB SRC_LIST
+        "process/factory_fun_test/*.cpp"
+        "process/factory_fun_test/*.hpp"
         "process/*.cpp"
-        "process/*.hpp"
-        "hmi/*.cpp"
-        "hmi/*.hpp"
-        "hmi/common/*.cpp"
-        "hmi/common/*.hpp"
-        "common/qserial_channel.hpp"
+        "common/*.hpp"
 )
 
 add_executable(FactoryTestModule WIN32 ${SRC_LIST} resources/resources.qrc)
@@ -37,9 +34,7 @@ add_executable(FactoryTestModule WIN32 ${SRC_LIST} resources/resources.qrc)
 include_directories(FactoryTestModule
         "common"
         "common/protocol_core"
-        "hmi"
-        "hmi/common"
-        "process"
+        "process/factory_fun_test"
 )
 
 target_link_libraries(FactoryTestModule PRIVATE
@@ -55,13 +50,13 @@ target_link_libraries(FactoryTestModule PRIVATE
 qt_add_qml_module(FactoryTestModule
         URI FactoryTestHmi
         QML_FILES
-            hmi/Home.qml
-            hmi/Head.qml
-            hmi/UiTestPanel.qml
-            hmi/UiFactoryTest.qml
-            hmi/UiTestCard.qml
-            hmi/UiFactoryTestRtTable.qml
-            hmi/UiFactoryTestSetting.qml
+            hmi/common/Home.qml
+            hmi/common/Head.qml
+            hmi/factory_fun_test/UiTestPanel.qml
+            hmi/factory_fun_test/UiFactoryTest.qml
+            hmi/factory_fun_test/UiTestCard.qml
+            hmi/factory_fun_test/UiFactoryTestRtTable.qml
+            hmi/factory_fun_test/UiFactoryTestSetting.qml
         RESOURCES
             resources/pvt.png
 )
