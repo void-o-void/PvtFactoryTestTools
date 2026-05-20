@@ -18,11 +18,11 @@ Window {
         anchors.left: parent.left
         anchors.right: parent.right
         height: 18
-        z: 100                     // 确保在所有元素之上
+        z: 100
 
         MouseArea {
             anchors.fill: parent
-            cursorShape: Qt.ArrowCursor   // 可选，提示可拖动
+            cursorShape: Qt.ArrowCursor
             property point lastPos: Qt.point(0, 0)
 
             onPressed: {
@@ -48,17 +48,35 @@ Window {
 
     Head {
         id: head
-        x: 16
-        y: 16
-        width: 1888
-        height: 96
+        x: 16; y: 16
+        width: 1888; height: 96
+
+        onViewChanged: function(name) {
+            viewLoader.sourceComponent = (name === "老化测试") ? agingComp : factoryComp
+        }
     }
 
-    UiFactoryTest {
+    // 内容区域：根据 Head 导航切换
+    Loader {
+        id: viewLoader
         anchors.top: head.bottom
         anchors.topMargin: 16
         anchors.left: parent.left
         anchors.leftMargin: 16
         width: parent.width - 32
+        height: parent.height - head.height - 48
+        sourceComponent: factoryComp
+    }
+
+    // 功能测试界面
+    Component {
+        id: factoryComp
+        UiFactoryTest { }
+    }
+
+    // 老化测试界面
+    Component {
+        id: agingComp
+        UiAgingTest { }
     }
 }

@@ -2,6 +2,7 @@
 // Created by panshiquan on 2026/5/13.
 //
 #include "test_manage.hpp"
+#include "aging_test_manage.hpp"
 
 // ==================== openSerial ====================
 void TestManage::openSerial() {
@@ -20,7 +21,14 @@ void TestManage::openSerial() {
     m_working = true;
     m_worker = std::thread([this]() {
         while (m_working) {
+            // 老化模式：休眠，让出串口
+            if (m_mode == TestMode::AGING) {
+                std::this_thread::sleep_for(std::chrono::seconds(2));
+                continue;
+            }
+
             auto msg = m_connect_protocol->pull();
+
             if (msg.data_len > 3) {
                 handleMsg(msg);
             } else {
@@ -41,9 +49,20 @@ void TestManage::reset() {
     QVector<TestRunItem> plan = Config::instance()->enabledTestPlan();
     m_flowController->loadTestPlan(plan);
 
-    // 3. 回到 Idle（工作线程照跑，但 Idle 状态会丢弃所有消息）
+    // 3. 回到 Idle
     m_state = Idle;
     emit stateChanged(m_state);
+}
+
+TestMode TestManage::mode() {
+    return m_mode;
+}
+
+void TestManage::switchToAging() {
+    m_mode = TestMode::AGING;
+    reset();
+
+    AmingTestManage::instance()->takeOver(m_connect_protocol);
 }
 
 // ==================== start ====================

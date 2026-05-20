@@ -29,6 +29,11 @@ public:
 
     ~CFactoryTestProtocol() override = default;
 
+    // 直接将消息推入内部阻塞队列（不经过串口）
+    void pushQueue(MessageEntity &msg) {
+        m_queue.push(msg);
+    }
+
     using json = nlohmann::json;
 
     // ==================== 解析函数 ====================

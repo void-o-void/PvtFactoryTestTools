@@ -28,6 +28,11 @@ typedef enum {
     TEST_FPGA = 0x02
 } TestType;
 
+typedef enum {
+    FUNC = 0x01,
+    AGING = 0x02
+} TestMode;
+
 // CommonEntity结构体
 typedef struct {
     int action;     // 测试动作 (0:停止测试, 1:开始测试)

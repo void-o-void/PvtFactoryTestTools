@@ -13,6 +13,7 @@
 
 #include "test_rt_model.hpp"
 #include "test_manage.hpp"
+#include "aging_test_manage.hpp"
 
 #include <QQuickStyle>
 

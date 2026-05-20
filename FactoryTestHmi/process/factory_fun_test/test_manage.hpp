@@ -20,7 +20,6 @@
 #include "common.hpp"
 #include "test_controller.hpp"
 
-
 // ---------- 功能码 ----------
 namespace MsgFuncCode {
     constexpr uint8_t HANDSHAKE        = 0x64;   // 设备 → 上位机
@@ -45,6 +44,9 @@ public:
 
     Q_INVOKABLE void start();
     Q_INVOKABLE void reset();
+    Q_INVOKABLE void switchToAging();
+
+    inline TestMode mode();
 
 signals:
     void stateChanged(int state);
@@ -70,6 +72,8 @@ private:
 
     std::thread m_worker;
     std::atomic<bool> m_working{false};
+
+    TestMode m_mode = TestMode::FUNC;
 };
 
 #endif // FACTORYTESTMODULE_TEST_MANAGE_H

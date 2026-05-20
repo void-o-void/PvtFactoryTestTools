@@ -25,6 +25,8 @@ qt_policy(SET QTP0004 NEW)
 file(GLOB SRC_LIST
         "process/factory_fun_test/*.cpp"
         "process/factory_fun_test/*.hpp"
+        "process/factory_aging_test/*.hpp"
+        "process/factory_aging_test/*.cpp"
         "process/*.cpp"
         "common/*.hpp"
 )
@@ -35,6 +37,7 @@ include_directories(FactoryTestModule
         "common"
         "common/protocol_core"
         "process/factory_fun_test"
+        "process/factory_aging_test"
 )
 
 target_link_libraries(FactoryTestModule PRIVATE
@@ -57,6 +60,7 @@ qt_add_qml_module(FactoryTestModule
             hmi/factory_fun_test/UiTestCard.qml
             hmi/factory_fun_test/UiFactoryTestRtTable.qml
             hmi/factory_fun_test/UiFactoryTestSetting.qml
+            hmi/factory_aging_test/UiAgingTest.qml
         RESOURCES
             resources/pvt.png
 )
