@@ -1,6 +1,5 @@
 #include "aging_test_manage.hpp"
 #include "test_config.hpp"
-#include <QDebug>
 #include <QJsonObject>
 #include <QJsonDocument>
 #include <QJsonArray>
@@ -8,37 +7,54 @@
 #include <chrono>
 #include <memory>
 
-AmingTestManage::AmingTestManage(QObject *parent) : QObject(parent) {}
+AmingTestManage::AmingTestManage(QObject *parent) : QObject(parent) {
+    openSerial();
+}
 
 AmingTestManage::~AmingTestManage() {
     reset();
+    if (m_uart_ch) {
+        m_uart_ch->reset();
+        delete m_uart_ch;
+        m_uart_ch = nullptr;
+    }
 }
 
-void AmingTestManage::takeOver(CFactoryTestProtocol *ch) { m_uart_ch = ch; }
+// ==================== openSerial ====================
+void AmingTestManage::openSerial() {
+    if (m_uart_ch) {
+        m_uart_ch->reset();
+        delete m_uart_ch;
+        m_uart_ch = nullptr;
+    }
+
+    auto cfg = Config::instance();
+    m_uart_ch = new CFactoryTestProtocol(
+        new SerialChannel(cfg->debugSerial().com,
+                          static_cast<QSerialPort::BaudRate>(cfg->debugSerial().baud_rate)));
+    m_uart_ch->start();
+}
 
 // ==================== start ====================
 void AmingTestManage::start() {
     reset();
+    emit logMessage("[OK] 老化串口已打开");
+
     m_worker = std::thread([this]() {
         bool exit = false;
 
-        // 握手：超时重试，reset 退出
         while (!exit && !pushHandshake(exit)) {
-            if (exit) {
-                return;
-            }
-            qDebug() << "[Aging] 握手超时，重试...";
+            if (exit) return;
+            emit logMessage("[WARN] 握手超时，重试...");
         }
+        if (exit) return;
 
-        // 下发配置：超时重试，reset 退出
         while (!exit && !pushConfig(exit)) {
-            if (exit)  {
-                return;
-            }
-            qDebug() << "[Aging] 配置超时，重试...";
+            if (exit) return;
+            emit logMessage("[WARN] 配置超时，重试...");
         }
+        if (exit) return;
 
-        // 轮询
         while (!exit) {
             std::this_thread::sleep_for(std::chrono::seconds(1));
             pushStatusQuery();
@@ -62,21 +78,21 @@ void AmingTestManage::reset() {
 // ==================== pushHandshake ====================
 bool AmingTestManage::pushHandshake(bool &exit) {
     QJsonObject obj;
-    obj["code"] = 200;
+    obj["code"] = 100;
     QJsonObject paraObj;
-    paraObj["type"] = "aging_start";
-    paraObj["factory"] = Config::instance()->factoryConfig().factory_name;
+    paraObj["action"] = 1;
+    paraObj["state"] = 2;
     obj["para"] = paraObj;
     QJsonDocument doc(obj);
     QByteArray bytes = doc.toJson(QJsonDocument::Compact);
 
     MessageEntity msg;
-    msg.index = 0; msg.type = 0;
+    msg.index = 0; msg.type = 2;
     msg.data = strdup(bytes.constData());
     msg.data_len = bytes.size();
     m_uart_ch->push(msg);
 
-    qDebug() << "[Aging] 发送握手，等待响应(2s)...";
+    emit logMessage("[OK] 发送握手，等待响应(2s)...");
 
     auto active = std::make_shared<std::atomic<bool>>(true);
     std::thread([this, active]() {
@@ -95,7 +111,7 @@ bool AmingTestManage::pushHandshake(bool &exit) {
 
     std::string buf(resp.data, resp.data_len);
     CodeEntity* ce = CFactoryTestProtocol::parseCodeEntity(buf);
-    if (ce && ce->code == 100) { qDebug() << "[Aging] 握手成功"; return true; }
+    if (ce && ce->code == 100) { emit logMessage("[OK] 握手成功"); return true; }
     return false;
 }
 
@@ -117,7 +133,7 @@ bool AmingTestManage::pushConfig(bool &exit) {
     msg.data_len = bytes.size();
     m_uart_ch->push(msg);
 
-    qDebug() << "[Aging] 发送配置，等待响应(2s)...";
+    emit logMessage("[OK] 发送配置，等待响应(2s)...");
 
     auto active = std::make_shared<std::atomic<bool>>(true);
     std::thread([this, active]() {
@@ -136,7 +152,7 @@ bool AmingTestManage::pushConfig(bool &exit) {
 
     std::string buf(resp.data, resp.data_len);
     CodeEntity* ce = CFactoryTestProtocol::parseCodeEntity(buf);
-    if (ce && ce->code == 101) { qDebug() << "[Aging] 配置成功"; return true; }
+    if (ce && ce->code == 101) { emit logMessage("[OK] 配置成功"); return true; }
     return false;
 }
 
@@ -158,7 +174,9 @@ void AmingTestManage::handleStatus(const MessageEntity& msg) {
     CodeEntity* ce = CFactoryTestProtocol::parseCodeEntity(buf);
     if (!ce) return;
     if (ce->code == 203 && ce->common) {
-        qDebug() << "[Aging] 状态上报 state:" << ce->common->state
-                 << (ce->common->msg ? ce->common->msg : "");
+        QString log = QString("[OK] 状态上报 state:%1 %2")
+            .arg(ce->common->state)
+            .arg(ce->common->msg ? ce->common->msg : "");
+        emit logMessage(log);
     }
 }

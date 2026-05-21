@@ -480,9 +480,9 @@ Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 52
                 radius: 8
-                color: testSettingMouse.containsMouse ? "#0f2a1f" : "#1e293b"
+                color: testSettingMouse.containsMouse || settingDrawer.visible ? "#0f2a1f" : "#1e293b"
                 border {
-                    color: testSettingMouse.containsMouse ? "#34d399" : "#334155"
+                    color: testSettingMouse.containsMouse || settingDrawer.visible ? "#34d399" : "#334155"
                     width: 1
                 }
                 RowLayout {
@@ -490,11 +490,11 @@ Rectangle {
                     spacing: 8
                     Text {
                         text: "⚙"; font.pixelSize: 28
-                        color: testSettingMouse.containsMouse ? "#34d399" : "#cbd5e1"
+                        color: testSettingMouse.containsMouse || settingDrawer.visible ? "#34d399" : "#cbd5e1"
                     }
                     Text {
                         text: "测试设置"; font.pixelSize: 18
-                        color: testSettingMouse.containsMouse ? "#34d399" : "#cbd5e1"
+                        color: testSettingMouse.containsMouse || settingDrawer.visible ? "#34d399" : "#cbd5e1"
                     }
                 }
                 MouseArea {
@@ -502,7 +502,7 @@ Rectangle {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: console.log("测试设置")
+                    onClicked: settingDrawer.open()
                 }
             }
 
@@ -511,9 +511,9 @@ Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 52
                 radius: 8
-                color: exportMouse.containsMouse ? "#0f2a1f" : "#1e293b"
+                color: exportMouse.containsMouse || exportDrawer.visible ? "#0f2a1f" : "#1e293b"
                 border {
-                    color: exportMouse.containsMouse ? "#34d399" : "#334155"
+                    color: exportMouse.containsMouse || exportDrawer.visible ? "#34d399" : "#334155"
                     width: 1
                 }
                 RowLayout {
@@ -521,11 +521,11 @@ Rectangle {
                     spacing: 8
                     Text {
                         text: "💾"; font.pixelSize: 26
-                        color: exportMouse.containsMouse ? "#34d399" : "#cbd5e1"
+                        color: exportMouse.containsMouse || exportDrawer.visible ? "#34d399" : "#cbd5e1"
                     }
                     Text {
                         text: "导出结果"; font.pixelSize: 18
-                        color: exportMouse.containsMouse ? "#34d399" : "#cbd5e1"
+                        color: exportMouse.containsMouse || exportDrawer.visible ? "#34d399" : "#cbd5e1"
                     }
                 }
                 MouseArea {
@@ -533,8 +533,60 @@ Rectangle {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: console.log("导出结果")
+                    onClicked: exportDrawer.open()
                 }
+            }
+        }
+
+        // ===== 测试设置抽屉 =====
+        SlideDrawer {
+            id: settingDrawer
+            title: "测试设置"
+            drawerWidth: 1500
+            ColumnLayout {
+                anchors { fill: parent; topMargin: 10 }
+                spacing: 16
+
+                Text {
+                    Layout.fillWidth: true
+                    text: "测试参数配置"
+                    font.pixelSize: 14; font.weight: Font.Bold
+                    color: "#e2e8f0"
+                }
+                Rectangle { Layout.fillWidth: true; height: 1; color: "#1e293b" }
+                Text {
+                    Layout.fillWidth: true
+                    text: "此处可配置超时时间、重试次数等参数"
+                    font.pixelSize: 13; color: "#64748b"
+                    wrapMode: Text.WordWrap
+                }
+                Item { Layout.fillHeight: true }
+            }
+        }
+
+        // ===== 导出结果抽屉 =====
+        SlideDrawer {
+            id: exportDrawer
+            title: "导出结果"
+            drawerWidth: 1500
+            ColumnLayout {
+                anchors { fill: parent; topMargin: 10 }
+                spacing: 16
+
+                Text {
+                    Layout.fillWidth: true
+                    text: "数据导出"
+                    font.pixelSize: 14; font.weight: Font.Bold
+                    color: "#e2e8f0"
+                }
+                Rectangle { Layout.fillWidth: true; height: 1; color: "#1e293b" }
+                Text {
+                    Layout.fillWidth: true
+                    text: "可将测试结果导出为 CSV/JSON 格式"
+                    font.pixelSize: 13; color: "#64748b"
+                    wrapMode: Text.WordWrap
+                }
+                Item { Layout.fillHeight: true }
             }
         }
     }

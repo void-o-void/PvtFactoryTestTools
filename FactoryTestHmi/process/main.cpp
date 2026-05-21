@@ -45,8 +45,10 @@ int main(int argc, char *argv[]) {
 
     RtModel *model = RtModel::instance();
     TestManage* mgr = TestManage::instance();
+    AmingTestManage* agingMgr = AmingTestManage::instance();
     engine.rootContext()->setContextProperty("rtModel", model);
     engine.rootContext()->setContextProperty("testManage", mgr);
+    engine.rootContext()->setContextProperty("agingTestManage", agingMgr);
     engine.rootContext()->setContextProperty("Config", Config::instance());
 
     QObject::connect(

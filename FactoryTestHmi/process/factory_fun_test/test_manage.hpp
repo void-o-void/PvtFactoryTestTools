@@ -44,16 +44,13 @@ public:
 
     Q_INVOKABLE void start();
     Q_INVOKABLE void reset();
-    Q_INVOKABLE void switchToAging();
-
-    inline TestMode mode();
 
 signals:
     void stateChanged(int state);
-    void handshakeDone();                  // 收到设备握手，通知 QML 切换按钮状态
-    void testFinished(int failCount);      // 测试全部完成，failCount=0 表示全部通过
-    void startAllRequested();                                     // 跨线程通知 flowController 启动定时器
-    void itemResultReceived(int code, int state, const QString &msg); // 跨线程携带测试结果
+    void handshakeDone();
+    void testFinished(int failCount);
+    void startAllRequested();
+    void itemResultReceived(int code, int state, const QString &msg);
 
 private:
     TestManage();
@@ -72,8 +69,6 @@ private:
 
     std::thread m_worker;
     std::atomic<bool> m_working{false};
-
-    TestMode m_mode = TestMode::FUNC;
 };
 
 #endif // FACTORYTESTMODULE_TEST_MANAGE_H

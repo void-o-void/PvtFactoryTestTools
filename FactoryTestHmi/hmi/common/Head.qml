@@ -206,7 +206,6 @@ Rectangle {
                             onClicked: {
                                 topHeader.currentView = "老化测试"
                                 topHeader.viewChanged("老化测试")
-                                testManage.switchToAging()
                                 navPopup.close()
                             }
                         }

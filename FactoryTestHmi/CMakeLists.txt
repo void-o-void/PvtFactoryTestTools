@@ -55,12 +55,15 @@ qt_add_qml_module(FactoryTestModule
         QML_FILES
             hmi/common/Home.qml
             hmi/common/Head.qml
+            hmi/common/SlideDrawer.qml
             hmi/factory_fun_test/UiTestPanel.qml
             hmi/factory_fun_test/UiFactoryTest.qml
             hmi/factory_fun_test/UiTestCard.qml
             hmi/factory_fun_test/UiFactoryTestRtTable.qml
             hmi/factory_fun_test/UiFactoryTestSetting.qml
             hmi/factory_aging_test/UiAgingTest.qml
+            hmi/factory_aging_test/UiAgingTestCard.qml
+            hmi/factory_aging_test/UiAgingTestRtLog.qml
         RESOURCES
             resources/pvt.png
 )

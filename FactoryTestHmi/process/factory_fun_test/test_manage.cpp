@@ -2,7 +2,6 @@
 // Created by panshiquan on 2026/5/13.
 //
 #include "test_manage.hpp"
-#include "aging_test_manage.hpp"
 
 // ==================== openSerial ====================
 void TestManage::openSerial() {
@@ -21,12 +20,6 @@ void TestManage::openSerial() {
     m_working = true;
     m_worker = std::thread([this]() {
         while (m_working) {
-            // 老化模式：休眠，让出串口
-            if (m_mode == TestMode::AGING) {
-                std::this_thread::sleep_for(std::chrono::seconds(2));
-                continue;
-            }
-
             auto msg = m_connect_protocol->pull();
 
             if (msg.data_len > 3) {
@@ -40,29 +33,15 @@ void TestManage::openSerial() {
 
 // ==================== reset ====================
 void TestManage::reset() {
-    // 1. 取消全部定时器
     if (m_flowController) {
         m_flowController->cancelAll();
     }
 
-    // 2. 加载初始测试计划（表格回到 idle）
     QVector<TestRunItem> plan = Config::instance()->enabledTestPlan();
     m_flowController->loadTestPlan(plan);
 
-    // 3. 回到 Idle
     m_state = Idle;
     emit stateChanged(m_state);
-}
-
-TestMode TestManage::mode() {
-    return m_mode;
-}
-
-void TestManage::switchToAging() {
-    m_mode = TestMode::AGING;
-    reset();
-
-    AmingTestManage::instance()->takeOver(m_connect_protocol);
 }
 
 // ==================== start ====================
@@ -82,7 +61,6 @@ TestManage::TestManage() {
     m_rt = RtModel::instance();
     m_flowController = new TestFlowController(m_rt, this);
 
-    // 跨线程信号
     QObject::connect(this, &TestManage::startAllRequested,
                      m_flowController, &TestFlowController::startAll,
                      Qt::QueuedConnection);
@@ -90,7 +68,6 @@ TestManage::TestManage() {
                      m_flowController, &TestFlowController::onItemResultReceived,
                      Qt::QueuedConnection);
 
-    // 全部测试完成
     QObject::connect(m_flowController, &TestFlowController::allItemsFinished,
                      this, [this]() {
         if (m_state == Busy) {
@@ -102,7 +79,6 @@ TestManage::TestManage() {
         }
     });
 
-    // 初始化：打开串口（仅一次）、加载计划、进入 Idle
     openSerial();
     reset();
 }
