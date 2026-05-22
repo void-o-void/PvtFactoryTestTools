@@ -22,6 +22,7 @@ signals:
     void handshakeDone();
     void configDone();
     void tempDataUpdated(double apNtc, double md, double pmic, double soc);
+    void dashboardDataUpdated(double cpu, double gpu, double apu, double freq);
 
 private:
     AmingTestManage(QObject* parent = nullptr);

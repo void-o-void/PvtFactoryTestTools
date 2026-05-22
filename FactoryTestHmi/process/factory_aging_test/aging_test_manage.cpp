@@ -219,7 +219,7 @@ void AmingTestManage::handleStatus(const MessageEntity& msg) {
             .arg(ce->common->state)
             .arg(ce->common->msg ? ce->common->msg : ""));
 
-        // common->msg 是 JSON 字符串，包含温度数据
+        // common->msg 是 JSON 字符串，包含温度和负载数据
         if (ce->common->msg && ce->common->msg[0] != '\0') {
             QJsonDocument doc = QJsonDocument::fromJson(ce->common->msg);
             if (doc.isObject()) {
@@ -228,6 +228,10 @@ void AmingTestManage::handleStatus(const MessageEntity& msg) {
                                      o["mdTemp"].toDouble(),
                                      o["pmicTemp"].toDouble(),
                                      o["socMaxTemp"].toDouble());
+                emit dashboardDataUpdated(o["cpuLoading"].toDouble(),
+                                          o["gpuLoading"].toDouble(),
+                                          o["apuLoading"].toDouble(),
+                                          o["dramFreq"].toDouble());
             }
         }
     }

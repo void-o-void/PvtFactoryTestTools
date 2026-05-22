@@ -57,6 +57,8 @@ qt_add_qml_module(FactoryTestModule
             hmi/common/Head.qml
             hmi/common/SlideDrawer.qml
             hmi/common/UiLineChart.qml
+            hmi/common/WaterBall.qml
+            hmi/common/FreqGauge.qml
             hmi/factory_fun_test/UiTestPanel.qml
             hmi/factory_fun_test/UiFactoryTest.qml
             hmi/factory_fun_test/UiTestCard.qml

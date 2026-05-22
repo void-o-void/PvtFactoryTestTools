@@ -11,6 +11,8 @@ Rectangle {
     property var tempPmic:   []
     property var tempSoc:    []
     property int chartTick: 0
+    property real cpuLoad: 0; property real gpuLoad: 0; property real apuLoad: 0
+    property real freqVal: 0
 
     function pushTemp(apNtc, md, pmic, soc) {
         function push(arr, v) { arr.push(v); if (arr.length > maxTempPoints) arr.shift() }
@@ -41,6 +43,9 @@ Rectangle {
         function onHandshakeDone() { agingCard.agingPhase = "configuring" }
         function onConfigDone()    { agingCard.agingPhase = "testing" }
         function onTempDataUpdated(apNtc, md, pmic, soc) { pushTemp(apNtc, md, pmic, soc) }
+        function onDashboardDataUpdated(cpu, gpu, apu, freq) {
+            cpuLoad = cpu; gpuLoad = gpu; apuLoad = apu; freqVal = freq
+        }
     }
 
     // ===== 站位信息 =====
@@ -73,13 +78,40 @@ Rectangle {
         StationItem { id: s5; anchors.left: s4.right; anchors.leftMargin: 1; anchors.verticalCenter: parent.verticalCenter; width: staionInfo.itemWidth; height: parent.height; label: "夹具编号"; value: "FIX-017" }
     }
 
-    // ===== 仪表盘占位 =====
+    // ===== 仪表盘：4 等分（负载×3 + 频率×1） =====
     Rectangle {
         id: dashBoard
         anchors.top: staionInfo.bottom; anchors.topMargin: 16
         anchors.left: agingCard.right; anchors.leftMargin: 16
         width: 1392; height: 240; color: "#0f172a"; radius: 10; antialiasing: true
-        Text { anchors.centerIn: parent; text: "仪表盘（待实现）"; font.pixelSize: 20; color: "#475569" }
+
+        RowLayout {
+            anchors.fill: parent; anchors.margins: 12
+            spacing: 0
+
+            // CPU 负载
+            Item { Layout.fillWidth: true; Layout.fillHeight: true
+                WaterBall { anchors.centerIn: parent; percent: cpuLoad; label: "CPU 负载"; waterColor: "#60a5fa" }
+            }
+            Rectangle { Layout.preferredWidth: 1; Layout.fillHeight: true; Layout.topMargin: 20; Layout.bottomMargin: 20; color: "#1e293b" }
+
+            // GPU 负载
+            Item { Layout.fillWidth: true; Layout.fillHeight: true
+                WaterBall { anchors.centerIn: parent; percent: gpuLoad; label: "GPU 负载"; waterColor: "#22c55e" }
+            }
+            Rectangle { Layout.preferredWidth: 1; Layout.fillHeight: true; Layout.topMargin: 20; Layout.bottomMargin: 20; color: "#1e293b" }
+
+            // APU 负载
+            Item { Layout.fillWidth: true; Layout.fillHeight: true
+                WaterBall { anchors.centerIn: parent; percent: apuLoad; label: "APU 负载"; waterColor: "#f59e0b" }
+            }
+            Rectangle { Layout.preferredWidth: 1; Layout.fillHeight: true; Layout.topMargin: 20; Layout.bottomMargin: 20; color: "#1e293b" }
+
+            // DRAM 频率
+            Item { Layout.fillWidth: true; Layout.fillHeight: true
+                FreqGauge { anchors.centerIn: parent; freqValue: freqVal; accentColor: "#a78bfa" }
+            }
+        }
     }
 
     // ===== 温度曲线图 =====
