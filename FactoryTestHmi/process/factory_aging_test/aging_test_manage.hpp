@@ -21,6 +21,7 @@ signals:
     void logMessage(const QString &msg);
     void handshakeDone();
     void configDone();
+    void tempDataUpdated(double apNtc, double md, double pmic, double soc);
 
 private:
     AmingTestManage(QObject* parent = nullptr);

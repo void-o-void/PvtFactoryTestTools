@@ -5,6 +5,22 @@ import QtQuick.Layouts
 Rectangle {
     color: "transparent"
 
+    property int maxTempPoints: 120
+    property var tempApNtc:  []
+    property var tempMd:     []
+    property var tempPmic:   []
+    property var tempSoc:    []
+    property int chartTick: 0
+
+    function pushTemp(apNtc, md, pmic, soc) {
+        function push(arr, v) { arr.push(v); if (arr.length > maxTempPoints) arr.shift() }
+        push(tempApNtc, apNtc)
+        push(tempMd, md)
+        push(tempPmic, pmic)
+        push(tempSoc, soc)
+        chartTick++
+    }
+
     UiAgingTestCard {
         id: agingCard
         width: 480; height: 550
@@ -19,12 +35,12 @@ Rectangle {
         width: 480
     }
 
-    // 老化管理器信号 → UI
     Connections {
         target: agingTestManage
         function onLogMessage(msg) { logCard.append(msg) }
         function onHandshakeDone() { agingCard.agingPhase = "configuring" }
         function onConfigDone()    { agingCard.agingPhase = "testing" }
+        function onTempDataUpdated(apNtc, md, pmic, soc) { pushTemp(apNtc, md, pmic, soc) }
     }
 
     // ===== 站位信息 =====
@@ -57,28 +73,26 @@ Rectangle {
         StationItem { id: s5; anchors.left: s4.right; anchors.leftMargin: 1; anchors.verticalCenter: parent.verticalCenter; width: staionInfo.itemWidth; height: parent.height; label: "夹具编号"; value: "FIX-017" }
     }
 
-    // ===== 温度曲线图表区（预留） =====
+    // ===== 仪表盘占位 =====
     Rectangle {
-        id: chartCard
+        id: dashBoard
         anchors.top: staionInfo.bottom; anchors.topMargin: 16
         anchors.left: agingCard.right; anchors.leftMargin: 16
-        width: 1392; height: 250; color: "#0f172a"; radius: 10; antialiasing: true
-
-        Text {
-            anchors.centerIn: parent
-            text: "温度曲线图表（待实现）"
-            font.pixelSize: 20; color: "#475569"
-        }
+        width: 1392; height: 240; color: "#0f172a"; radius: 10; antialiasing: true
+        Text { anchors.centerIn: parent; text: "仪表盘（待实现）"; font.pixelSize: 20; color: "#475569" }
     }
 
-    // ===== 表格区 =====
-    Rectangle {
-        id: tableCard
-        anchors.top: chartCard.bottom; anchors.topMargin: 8
+    // ===== 温度曲线图 =====
+    UiLineChart {
+        id: tempChart
+        anchors.top: dashBoard.bottom; anchors.topMargin: 16
         anchors.left: agingCard.right; anchors.leftMargin: 16
         anchors.bottom: parent.bottom
         width: 1392
-        color: "#0f172a"; radius: 10; antialiasing: true
-        Text { anchors.centerIn: parent; text: "老化测试数据表格（待实现）"; font.pixelSize: 20; color: "#475569" }
+
+        windowSec: maxTempPoints
+        series: { chartTick; return ({ "apNtcTemp": tempApNtc, "mdTemp": tempMd, "pmicTemp": tempPmic, "socMaxTemp": tempSoc }) }
+        colors: ({ "apNtcTemp": "#60a5fa", "mdTemp": "#f59e0b", "pmicTemp": "#22c55e", "socMaxTemp": "#ef4444" })
+        labels: ({ "apNtcTemp": "板端",  "mdTemp": "MD",    "pmicTemp": "PMIC",  "socMaxTemp": "SOC" })
     }
 }

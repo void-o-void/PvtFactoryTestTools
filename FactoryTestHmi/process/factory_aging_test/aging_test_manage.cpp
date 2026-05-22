@@ -215,9 +215,20 @@ void AmingTestManage::handleStatus(const MessageEntity& msg) {
     CodeEntity* ce = CFactoryTestProtocol::parseCodeEntity(buf);
     if (!ce) return;
     if (ce->code == 300 && ce->common) {
-        QString log = QString("[OK] 状态上报 state:%1 %2")
+        emit logMessage(QString("[OK] 状态上报 state:%1 %2")
             .arg(ce->common->state)
-            .arg(ce->common->msg ? ce->common->msg : "");
-        emit logMessage(log);
+            .arg(ce->common->msg ? ce->common->msg : ""));
+
+        // common->msg 是 JSON 字符串，包含温度数据
+        if (ce->common->msg && ce->common->msg[0] != '\0') {
+            QJsonDocument doc = QJsonDocument::fromJson(ce->common->msg);
+            if (doc.isObject()) {
+                QJsonObject o = doc.object();
+                emit tempDataUpdated(o["apNtcTemp"].toDouble(),
+                                     o["mdTemp"].toDouble(),
+                                     o["pmicTemp"].toDouble(),
+                                     o["socMaxTemp"].toDouble());
+            }
+        }
     }
 }
