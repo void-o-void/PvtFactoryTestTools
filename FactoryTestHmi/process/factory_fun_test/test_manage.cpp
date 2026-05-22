@@ -42,10 +42,19 @@ void TestManage::openSerial() {
 
 // ==================== switchToAging ====================
 void TestManage::switchToAging() {
-    m_mode = TestMode::AGING;
-    reset();
-    m_connect_protocol->wakeUpQueue();
+    reset();                                          // 复位功能测试（m_mode→FUNC，停旧老化）
+    AmingTestManage::instance()->reset();             // 确保旧老化 worker 已退出
+    m_mode = TestMode::AGING;                         // 设置老化模式（在 reset 之后）
+    m_connect_protocol->wakeUpQueue();                // 唤醒功能 worker，下次循环睡觉
     AmingTestManage::instance()->takeOver(m_connect_protocol);
+}
+
+// ==================== switchToFunctional ====================
+void TestManage::switchToFunctional() {
+    AmingTestManage::instance()->reset();             // 停止老化 worker
+    m_connect_protocol->clearQueue();                 // 先清队列（此时 worker 还在 AGING 睡眠）
+    m_mode = TestMode::FUNC;                          // 再切模式，worker 下次循环安全 pull
+    reset();                                          // 功能测试 UI 回 Idle
 }
 
 // ==================== reset ====================

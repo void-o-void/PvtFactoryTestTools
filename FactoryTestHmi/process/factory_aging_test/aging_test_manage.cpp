@@ -11,7 +11,11 @@ AmingTestManage::AmingTestManage(QObject *parent) : QObject(parent) {}
 
 AmingTestManage::~AmingTestManage() { reset(); }
 
-void AmingTestManage::takeOver(CFactoryTestProtocol *ch) { m_uart_ch = ch; }
+void AmingTestManage::takeOver(CFactoryTestProtocol *ch) {
+    m_uart_ch = ch;
+    // 接管时清空队列残留消息（上次会话的尾巴 + 功能测试推的唤醒消息）
+    if (m_uart_ch) m_uart_ch->clearQueue();
+}
 
 // ==================== start ====================
 void AmingTestManage::start() {
@@ -20,6 +24,9 @@ void AmingTestManage::start() {
 
     m_worker = std::thread([this]() {
         bool exit = false;
+
+        // 再次清空，防止接管后到 start 之间进入队列的消息
+        if (m_uart_ch) m_uart_ch->clearQueue();
 
         while (!exit && !pushHandshake(exit)) {
             if (exit) return;
@@ -59,25 +66,14 @@ void AmingTestManage::setPaused(bool pause) {
 }
 
 void AmingTestManage::reset() {
-    m_paused = false;  // 取消暂停，让 worker 从 sleep→检查→continue 死循环中走出
+    m_paused = false;  // 取消暂停，让 worker 走出死循环
     if (m_worker.joinable()) {
         if (m_uart_ch) {
             MessageEntity wake; wake.type = 8; m_uart_ch->pushQueue(wake);
         }
         m_worker.join();
     }
-    // 清空队列中上次会话的残留消息
-    drainQueue();
-}
-
-void AmingTestManage::drainQueue() {
-    if (!m_uart_ch) return;
-    MessageEntity sentinel; sentinel.type = 9;
-    m_uart_ch->pushQueue(sentinel);
-    while (true) {
-        auto msg = m_uart_ch->pull();
-        if (msg.type == 9) break;   // 哨兵到达，队列已清空
-    }
+    // 队列清空由 takeOver() / start() 中的 clearQueue() 负责
 }
 
 // ==================== pushHandshake ====================

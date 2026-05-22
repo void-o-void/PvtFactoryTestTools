@@ -82,6 +82,13 @@ public slots:
         QString result = pass ? "pass" : "fail";
         QString message = msg.isEmpty() ? (pass ? "测试通过" : "测试失败") : msg;
 
+        // 更新统计
+        if (pass) {
+            m_model->set_pass_num(QString::number(m_model->pass_num().toInt() + 1));
+        } else {
+            m_model->set_fail_num(QString::number(m_model->fail_num().toInt() + 1));
+        }
+
         m_model->updateTestValues(row, "finished", "--", message, result);
         emit itemFinished(code, pass);
         checkAllFinished();
@@ -131,7 +138,8 @@ private:
             item.currentRetry++;
             startAttempt(row);
         } else {
-            // 最终失败：status 用 "finished"，result 用 "fail"
+            // 最终失败
+            m_model->set_fail_num(QString::number(m_model->fail_num().toInt() + 1));
             m_model->updateTestValues(row, "finished", "--", "超时未回复", "fail");
             emit itemFinished(configId, false);
             checkAllFinished();

@@ -38,6 +38,11 @@ public:
         m_queue.push(MessageEntity{});
     }
 
+    // 非阻塞清空阻塞队列（不经过串口，使用 try_pop）
+    void clearQueue() {
+        while (m_queue.try_pop().has_value()) {}
+    }
+
     using json = nlohmann::json;
 
     // ==================== 解析函数 ====================

@@ -490,16 +490,24 @@ Rectangle {
                 Layout.alignment: Qt.AlignVCenter
                 Layout.leftMargin: 100
 
-                StatItem { label: "总量"; value: "1,250"; valueColor: "white" }
+                StatItem { label: "总量"; value: rtModel.total_num; valueColor: "white" }
                 Rectangle { width: 1; height: 40; color: "#1e293b" }
 
-                StatItem { label: "成功"; value: "1,231"; valueColor: "#22c55e" }
+                StatItem { label: "成功"; value: rtModel.pass_num; valueColor: "#22c55e" }
                 Rectangle { width: 1; height: 40; color: "#1e293b" }
 
-                StatItem { label: "失败"; value: "19"; valueColor: "#ef4444" }
+                StatItem { label: "失败"; value: rtModel.fail_num; valueColor: "#ef4444" }
                 Rectangle { width: 1; height: 40; color: "#1e293b" }
 
-                StatItem { label: "合格率"; value: "98.48%"; valueColor: "#60a5fa" }
+                StatItem {
+                    label: "合格率"
+                    value: {
+                        var t = parseInt(rtModel.total_num)
+                        if (t === 0) return "--"
+                        return (parseInt(rtModel.pass_num) * 100 / t).toFixed(1) + "%"
+                    }
+                    valueColor: "#60a5fa"
+                }
             }
 
             // 弹性空间，把按钮推到最右侧

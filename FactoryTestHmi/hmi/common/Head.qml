@@ -171,7 +171,7 @@ Rectangle {
                             onClicked: {
                                 topHeader.currentView = "功能测试"
                                 topHeader.viewChanged("功能测试")
-                                testManage.reset()
+                                testManage.switchToFunctional()
                                 navPopup.close()
                             }
                         }

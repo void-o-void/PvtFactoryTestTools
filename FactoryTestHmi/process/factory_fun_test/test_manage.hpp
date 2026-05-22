@@ -45,6 +45,7 @@ public:
     Q_INVOKABLE void start();
     Q_INVOKABLE void reset();
     Q_INVOKABLE void switchToAging();
+    Q_INVOKABLE void switchToFunctional();
 
 signals:
     void stateChanged(int state);

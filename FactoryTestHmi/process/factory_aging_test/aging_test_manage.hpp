@@ -30,7 +30,6 @@ private:
     bool pushConfig(bool &exit);
     void pushStatusQuery();
     void handleStatus(const MessageEntity& msg);
-    void drainQueue();
 
     CFactoryTestProtocol* m_uart_ch = nullptr;
     std::thread m_worker;
