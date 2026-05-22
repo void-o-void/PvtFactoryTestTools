@@ -30,8 +30,12 @@ public:
     ~CFactoryTestProtocol() override = default;
 
     // 直接将消息推入内部阻塞队列（不经过串口）
-    void pushQueue(MessageEntity &msg) {
+    void pushQueue(MessageEntity msg) {
         m_queue.push(msg);
+    }
+
+    void wakeUpQueue() {
+        m_queue.push(MessageEntity{});
     }
 
     using json = nlohmann::json;
@@ -84,6 +88,7 @@ public:
         CodeEntity* code_entity = new CodeEntity();
         code_entity->code = data["code"].get<int>();
         code_entity->common = new CommonEntity;
+        code_entity->common->msg = nullptr;
 
         // 1. 取出 para 数组，转换为字符串
         std::vector<uint8_t> para_bytes = data["para"].get<std::vector<uint8_t>>();

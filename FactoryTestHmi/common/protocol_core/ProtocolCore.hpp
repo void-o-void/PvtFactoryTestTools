@@ -71,9 +71,6 @@ public:
         return m_queue.pop();
     }
 
-    // 唤醒阻塞在 pull() 的线程（不关串口）
-    void wakeUpQueue() { m_queue.push(T{}); }
-
     void push(T msg) {
         int data_len = 0;
         //std::cout << "push: encode befor"  <<std::endl;

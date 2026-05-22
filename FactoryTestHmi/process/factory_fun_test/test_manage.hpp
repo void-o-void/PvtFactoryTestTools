@@ -44,6 +44,7 @@ public:
 
     Q_INVOKABLE void start();
     Q_INVOKABLE void reset();
+    Q_INVOKABLE void switchToAging();
 
 signals:
     void stateChanged(int state);
@@ -69,6 +70,7 @@ private:
 
     std::thread m_worker;
     std::atomic<bool> m_working{false};
+    TestMode m_mode = TestMode::FUNC;
 };
 
 #endif // FACTORYTESTMODULE_TEST_MANAGE_H

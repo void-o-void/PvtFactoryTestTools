@@ -2,6 +2,7 @@
 // Created by panshiquan on 2026/5/13.
 //
 #include "test_manage.hpp"
+#include "aging_test_manage.hpp"
 
 // ==================== openSerial ====================
 void TestManage::openSerial() {
@@ -20,15 +21,31 @@ void TestManage::openSerial() {
     m_working = true;
     m_worker = std::thread([this]() {
         while (m_working) {
-            auto msg = m_connect_protocol->pull();
+            // 老化模式：休眠让出串口，由老化管理器独占通道
+            if (m_mode == TestMode::AGING) {
+                std::this_thread::sleep_for(std::chrono::seconds(2));
+                continue;
+            }
 
+            auto msg = m_connect_protocol->pull();
             if (msg.data_len > 3) {
                 handleMsg(msg);
             } else {
+                if(m_mode == TestMode::AGING) {
+                    qDebug() << "唤醒移交控制权";
+                }
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
             }
         }
     });
+}
+
+// ==================== switchToAging ====================
+void TestManage::switchToAging() {
+    m_mode = TestMode::AGING;
+    reset();
+    m_connect_protocol->wakeUpQueue();
+    AmingTestManage::instance()->takeOver(m_connect_protocol);
 }
 
 // ==================== reset ====================

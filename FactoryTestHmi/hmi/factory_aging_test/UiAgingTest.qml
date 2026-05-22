@@ -19,10 +19,12 @@ Rectangle {
         width: 480
     }
 
-    // 老化管理器日志 → 实时日志区
+    // 老化管理器信号 → UI
     Connections {
         target: agingTestManage
         function onLogMessage(msg) { logCard.append(msg) }
+        function onHandshakeDone() { agingCard.agingPhase = "configuring" }
+        function onConfigDone()    { agingCard.agingPhase = "testing" }
     }
 
     // ===== 站位信息 =====
