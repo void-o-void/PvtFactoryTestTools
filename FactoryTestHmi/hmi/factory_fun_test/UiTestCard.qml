@@ -542,26 +542,8 @@ Rectangle {
         SlideDrawer {
             id: settingDrawer
             title: "测试设置"
-            drawerWidth: 1500
-            ColumnLayout {
-                anchors { fill: parent; topMargin: 10 }
-                spacing: 16
-
-                Text {
-                    Layout.fillWidth: true
-                    text: "测试参数配置"
-                    font.pixelSize: 14; font.weight: Font.Bold
-                    color: "#e2e8f0"
-                }
-                Rectangle { Layout.fillWidth: true; height: 1; color: "#1e293b" }
-                Text {
-                    Layout.fillWidth: true
-                    text: "此处可配置超时时间、重试次数等参数"
-                    font.pixelSize: 13; color: "#64748b"
-                    wrapMode: Text.WordWrap
-                }
-                Item { Layout.fillHeight: true }
-            }
+            drawerWidth: 1600
+            ConfigEditor { anchors { fill: parent; topMargin: 10; bottomMargin: 10 } }
         }
 
         // ===== 导出结果抽屉 =====

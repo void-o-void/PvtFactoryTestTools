@@ -260,3 +260,4 @@ void TestManage::sendCodeMessage(int code, const QJsonObject &paraObj) {
     response_msg.data_len = bytes.size();
     m_connect_protocol->push(response_msg);
 }
+

@@ -43,13 +43,26 @@ void AmingTestManage::start() {
         emit configDone();
 
         while (!exit) {
-            std::this_thread::sleep_for(std::chrono::seconds(1));
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
             // 暂停状态：只休眠，不下发查询
             if (m_paused) continue;
 
             pushStatusQuery();
+
+            // 超时保护：2 秒内无响应自动重试（应对 CProtocol 解码丢帧）
+            auto active = std::make_shared<std::atomic<bool>>(true);
+            std::thread([this, active]() {
+                std::this_thread::sleep_for(std::chrono::seconds(2));
+                if (*active) {
+                    MessageEntity wake; wake.type = 7;
+                    m_uart_ch->pushQueue(wake);
+                }
+            }).detach();
+
             auto msg = m_uart_ch->pull();
+            *active = false;
+
             if (msg.type == 8) break;
             if (msg.type == 7) continue;
             if (msg.data_len > 3) handleStatus(msg);

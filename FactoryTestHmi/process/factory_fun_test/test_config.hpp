@@ -118,32 +118,46 @@ class Config : public QObject {
     DECLARE_SINGLETON(Config)
 
 public:
-    // 切换项目（加载新 JSON）
-    void loadProject(const QString& projectName);
-    [[nodiscard]] QString currentProject() const { return m_currentProject; }
+    // ========== 项目管理 ==========
+    Q_INVOKABLE void loadProject(const QString& projectName);
+    Q_INVOKABLE QString currentProject() const { return m_currentProject; }
+    Q_INVOKABLE QStringList projectList() const;
+    Q_INVOKABLE void createProject(const QString& name);
+    Q_INVOKABLE void deleteProject(const QString& name);
+    Q_INVOKABLE void saveCurrentProject();
+    Q_INVOKABLE void updateFixedField(const QString& section, const QString& key, const QVariant& value);
+    Q_INVOKABLE QVariant readFixedField(const QString& section, const QString& key) const;
 
-    // ========== 按需获取方法（不缓存）==========
-    // 基础信息（一次性获取多个，可返回结构体，但不存成员）
+    // ========== 基础信息 ==========
     [[nodiscard]] SFactoryConfig factoryConfig() const;
     [[nodiscard]] SStationConfig stationConfig() const;
     [[nodiscard]] SSerialConfig connectSerial() const;
     [[nodiscard]] SSerialConfig debugSerial() const;
 
-    // 环境变量
+    // ========== env_items ==========
     [[nodiscard]] QList<SEnvItem> envItems() const;
+    Q_INVOKABLE QVariantList envItemsForQml() const;
+    Q_INVOKABLE void addEnvItem(const QVariantMap& item);
+    Q_INVOKABLE void updateEnvItem(int index, const QVariantMap& item);
+    Q_INVOKABLE void removeEnvItem(int index);
 
-    // 全量测试项（配置界面用）
+    // ========== test_items ==========
     [[nodiscard]] QVector<TestConfigItem> allTestItems() const;
+    Q_INVOKABLE QVariantList testItemsForQml() const;
+    Q_INVOKABLE void addTestItem(const QVariantMap& item);
+    Q_INVOKABLE void updateTestItem(int index, const QVariantMap& item);
+    Q_INVOKABLE void removeTestItem(int index);
 
     // 启用的测试项 → 转为测试流程结构体
     [[nodiscard]] QVector<TestRunItem> enabledTestPlan() const;
-
-    // 保存修改后的测试项全量配置到文件（配置界面调用）
     void saveTestItems(const QVector<TestConfigItem>& items);
 
     // 通用 JSON 文件读写
     static QJsonObject jsonFromFile(const QString& fileName);
     static void jsonToFile(const QString& fileName, const QJsonObject& obj);
+
+signals:
+    void projectChanged();
 
 private:
     Config();
@@ -151,7 +165,7 @@ private:
     [[nodiscard]] QJsonObject rootObj() const { return m_doc.object(); }
 
     QString m_currentProject;
-    QJsonDocument m_doc;   // 唯一的数据源
+    QJsonDocument m_doc;
 };
 
 #endif
