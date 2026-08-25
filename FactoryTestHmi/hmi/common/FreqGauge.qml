@@ -7,7 +7,7 @@ Canvas {
     property real animValue: 0
     property color accentColor: "#a78bfa"
 
-    property real scaleMin: 0.5; property real scaleMax: 3.0  // GHz
+    property real scaleMin: 1.0; property real scaleMax: 7.0  // GHz
     property real arcStart: Math.PI * 0.75; property real arcEnd: Math.PI * 2.25
 
     Behavior on animValue { NumberAnimation { duration: 400; easing.type: Easing.OutCubic } }
@@ -66,28 +66,29 @@ Canvas {
             ctx.stroke()
         }
 
-        // ===== 刻度 0.1 步进，全部显示标签 =====
-        var tickCount = Math.round((scaleMax - scaleMin) / 0.1) + 1  // 26 ticks
+        // ===== 刻度：主刻度 0.5 步进 + 单根副刻度 0.25 =====
+        var step = 0.25
+        var tickCount = Math.round((scaleMax - scaleMin) / step) + 1
         for (var i = 0; i < tickCount; i++) {
-            var val = scaleMin + i * 0.1
+            var val = scaleMin + i * step
             var ang = arcStart + (arcEnd - arcStart) * i / (tickCount - 1)
-            var isHalf = Math.abs(val - Math.round(val * 2) / 2) < 0.001
+            var isMajor = Math.abs(val - Math.round(val * 2) / 2) < 0.001
 
-            // 刻度线
-            var ir = r - (isHalf ? 14 : 6), or2 = r - 2
+            var ir = r - (isMajor ? 14 : 4), or2 = r - 2
             ctx.beginPath()
             ctx.moveTo(cx + Math.cos(ang) * ir, cy + Math.sin(ang) * ir)
             ctx.lineTo(cx + Math.cos(ang) * or2, cy + Math.sin(ang) * or2)
-            ctx.strokeStyle = isHalf ? accentColor : "#475569"
-            ctx.lineWidth = isHalf ? 2 : 0.5
+            ctx.strokeStyle = isMajor ? accentColor : "#475569"
+            ctx.lineWidth = isMajor ? 2 : 0.5
             ctx.stroke()
 
-            // 所有刻度显示标签
-            var lr = r - (isHalf ? 22 : 14)
-            var tx = cx + Math.cos(ang) * lr, ty = cy + Math.sin(ang) * lr
-            ctx.fillStyle = isHalf ? "#94a3b8" : "#64748b"
-            ctx.font = (isHalf ? "11px" : "9px") + " Inter, Segoe UI, sans-serif"; ctx.textAlign = "center"
-            ctx.fillText(val.toFixed(1), tx, ty + 4)
+            if (isMajor) {
+                var lr = r - 22
+                var tx = cx + Math.cos(ang) * lr, ty = cy + Math.sin(ang) * lr
+                ctx.fillStyle = "#94a3b8"
+                ctx.font = "11px Inter, Segoe UI, sans-serif"; ctx.textAlign = "center"
+                ctx.fillText(val.toFixed(1), tx, ty + 4)
+            }
         }
 
         // ===== 指针 =====

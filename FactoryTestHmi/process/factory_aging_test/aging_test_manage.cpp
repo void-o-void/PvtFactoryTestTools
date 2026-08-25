@@ -110,7 +110,7 @@ bool AmingTestManage::pushHandshake(bool &exit) {
     QByteArray bytes = doc.toJson(QJsonDocument::Compact);
 
     MessageEntity msg;
-    msg.index = 0; msg.type = 2;
+    msg.index = 0; msg.type = 0;
     msg.data = strdup(bytes.constData());
     msg.data_len = bytes.size();
     m_uart_ch->push(msg);
@@ -134,7 +134,7 @@ bool AmingTestManage::pushHandshake(bool &exit) {
         return false;
     }
 
-    if (resp.type == 7 || resp.type != 2) {
+    if (resp.type == 7) {
         return false;
     }
 
@@ -170,7 +170,7 @@ bool AmingTestManage::pushConfig(bool &exit) {
     QByteArray bytes = doc.toJson(QJsonDocument::Compact);
 
     MessageEntity msg;
-    msg.index = 0; msg.type = 2;
+    msg.index = 0; msg.type = 0x00;
     msg.data = strdup(bytes.constData());
     msg.data_len = bytes.size();
     m_uart_ch->push(msg);
@@ -217,7 +217,7 @@ void AmingTestManage::pushStatusQuery() {
     QByteArray bytes = doc.toJson(QJsonDocument::Compact);
 
     MessageEntity msg;
-    msg.index = 0; msg.type = 2;
+    msg.index = 0; msg.type = 0;
     msg.data = strdup(bytes.constData());
     msg.data_len = bytes.size();
     m_uart_ch->push(msg);
@@ -241,10 +241,12 @@ void AmingTestManage::handleStatus(const MessageEntity& msg) {
                                      o["mdTemp"].toDouble(),
                                      o["pmicTemp"].toDouble(),
                                      o["socMaxTemp"].toDouble());
-                emit dashboardDataUpdated(o["cpuLoading"].toDouble(),
-                                          o["gpuLoading"].toDouble(),
-                                          o["apuLoading"].toDouble(),
-                                          o["dramFreq"].toDouble());
+                double cpu = o["cpuLoading"].toVariant().toDouble();
+                double gpu = o["gpuLoading"].toVariant().toDouble();
+                double apu = o["apuLoading"].toVariant().toDouble();
+                double freqRaw = o["dramFreq"].toVariant().toDouble();
+                double freq = freqRaw > 100 ? freqRaw / 1000.0 : freqRaw;  // MHz → GHz
+                emit dashboardDataUpdated(cpu, gpu, apu, freq);
             }
         }
     }
