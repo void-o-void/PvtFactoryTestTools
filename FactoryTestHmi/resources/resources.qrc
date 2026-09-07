@@ -1,5 +1,9 @@
 <RCC>
     <qresource prefix="/">
         <file>pvt.png</file>
+        <file>ic_log_extract_all.png</file>
+        <file>ic_log_clear.png</file>
+        <file>ic_log_extract.png</file>
+        <file>ic_log_folder.png</file>
     </qresource>
 </RCC>

@@ -40,6 +40,26 @@ Rectangle {
         logExtractManage.extractSystem(title, dir)
     }
 
+    // 各系统连接状态（绿=可拉取，红=不可拉取）
+    property bool yoctoOnline: logExtractManage.yoctoOnline
+    property bool tboxOnline: logExtractManage.tboxOnline
+    property bool androidOnline: logExtractManage.androidOnline
+    property bool refreshingConn: false
+
+    function systemOnlineOf(title) {
+        if (title === "YOCTO") return root.yoctoOnline
+        if (title === "TBOX") return root.tboxOnline
+        if (title === "Android") return root.androidOnline
+        return false
+    }
+
+    function refreshConnections() {
+        if (root.phase === "extracting" || root.refreshingConn)
+            return
+        root.refreshingConn = true
+        logExtractManage.refreshConnectionStatus()
+    }
+
     function appendOp(line) {
         opLogModel.append({ text: line })
         if (opLogModel.count > 500)
@@ -49,9 +69,131 @@ Rectangle {
     ListModel { id: opLogModel }
     ListModel { id: fileModel }
 
+    readonly property string iconExtractAll: "qrc:/qt/qml/FactoryTestHmi/resources/ic_log_extract_all.png"
+    readonly property string iconClear: "qrc:/qt/qml/FactoryTestHmi/resources/ic_log_clear.png"
+    readonly property string iconExtract: "qrc:/qt/qml/FactoryTestHmi/resources/ic_log_extract.png"
+    readonly property string iconFolder: "qrc:/qt/qml/FactoryTestHmi/resources/ic_log_folder.png"
+
+    // 与功能测试 / 老化测试同风格：全部按钮悬停都是绿色
+    component ActionBtn : Rectangle {
+        id: btn
+        property string label: ""
+        property string iconSource: ""
+        property bool busy: false
+        property int iconSize: 22
+        property int fontSize: 16
+        signal clicked()
+
+        readonly property color accent: "#34d399"
+        readonly property color accentBg: "#0f2a1f"
+        readonly property color pressBg: "#064e3b"
+        readonly property bool hot: ma.containsMouse || ma.pressed
+
+        Layout.fillWidth: true
+        Layout.preferredHeight: 52
+        radius: 8
+        opacity: busy ? 0.55 : 1.0
+        scale: ma.pressed && !busy ? 0.98 : 1.0
+        color: busy ? "#1e293b"
+             : (ma.pressed ? pressBg : (ma.containsMouse ? accentBg : "#1e293b"))
+        border {
+            width: 1
+            color: busy ? "#334155" : (btn.hot ? accent : "#334155")
+        }
+
+        Behavior on color { ColorAnimation { duration: 120 } }
+        Behavior on border.color { ColorAnimation { duration: 120 } }
+        Behavior on scale { NumberAnimation { duration: 80 } }
+
+        Row {
+            anchors.centerIn: parent
+            spacing: 10
+            Image {
+                width: btn.iconSize; height: btn.iconSize
+                anchors.verticalCenter: parent.verticalCenter
+                source: btn.iconSource
+                fillMode: Image.PreserveAspectFit
+                smooth: true
+                mipmap: true
+                opacity: btn.busy ? 0.7 : 1.0
+            }
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: btn.label
+                font.pixelSize: btn.fontSize
+                font.weight: Font.Medium
+                color: btn.busy ? "#64748b" : (btn.hot ? btn.accent : "#cbd5e1")
+                Behavior on color { ColorAnimation { duration: 120 } }
+            }
+        }
+
+        MouseArea {
+            id: ma
+            anchors.fill: parent
+            hoverEnabled: !btn.busy
+            enabled: !btn.busy
+            cursorShape: btn.busy ? Qt.ArrowCursor : Qt.PointingHandCursor
+            onClicked: btn.clicked()
+        }
+    }
+
+    component MiniActionBtn : Rectangle {
+        id: mbtn
+        property string label: ""
+        property string iconSource: ""
+        property bool busy: false
+        signal clicked()
+
+        readonly property color accent: "#34d399"
+        readonly property color accentBg: "#0f2a1f"
+        readonly property color pressBg: "#064e3b"
+        readonly property bool hot: mma.containsMouse || mma.pressed
+
+        height: 36
+        radius: 8
+        opacity: busy ? 0.5 : 1.0
+        scale: mma.pressed && !busy ? 0.97 : 1.0
+        color: busy ? "#1e293b"
+             : (mma.pressed ? pressBg : (mma.containsMouse ? accentBg : "#1e293b"))
+        border {
+            width: 1
+            color: busy ? "#334155" : (mbtn.hot ? accent : "#334155")
+        }
+        Behavior on color { ColorAnimation { duration: 120 } }
+        Behavior on border.color { ColorAnimation { duration: 120 } }
+        Behavior on scale { NumberAnimation { duration: 80 } }
+
+        Row {
+            anchors.centerIn: parent
+            spacing: 6
+            Image {
+                width: 16; height: 16
+                anchors.verticalCenter: parent.verticalCenter
+                source: mbtn.iconSource
+                fillMode: Image.PreserveAspectFit
+                smooth: true
+            }
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: mbtn.label
+                font.pixelSize: 13; font.weight: Font.Medium
+                color: mbtn.busy ? "#64748b" : (mbtn.hot ? mbtn.accent : "#cbd5e1")
+                Behavior on color { ColorAnimation { duration: 120 } }
+            }
+        }
+
+        MouseArea {
+            id: mma
+            anchors.fill: parent
+            hoverEnabled: !mbtn.busy
+            enabled: !mbtn.busy
+            cursorShape: mbtn.busy ? Qt.ArrowCursor : Qt.PointingHandCursor
+            onClicked: mbtn.clicked()
+        }
+    }
+
     function refreshLocalFiles() {
         fileModel.clear()
-        // 仅展示提示；真实文件列表由操作日志反馈
     }
 
     Connections {
@@ -68,11 +210,20 @@ Rectangle {
         function onExtractFinished(ok, summary) {
             root.phase = ok ? "done" : (root.phase === "nodevice" ? "nodevice" : "fail")
             appendOp(ok ? ("[OK] " + summary) : ("[ERR] " + summary))
+            root.refreshConnections()
         }
         function onLocalCleared(ok, msg) {
             appendOp(ok ? ("[OK] " + msg) : ("[ERR] " + msg))
             if (ok && root.phase !== "extracting")
                 root.phase = "idle"
+        }
+        function onConnectionStatusChanged() {
+            root.yoctoOnline = logExtractManage.yoctoOnline
+            root.tboxOnline = logExtractManage.tboxOnline
+            root.androidOnline = logExtractManage.androidOnline
+        }
+        function onConnectionRefreshFinished() {
+            root.refreshingConn = false
         }
     }
 
@@ -80,6 +231,7 @@ Rectangle {
         appendOp("[OK] 日志提取就绪")
         appendOp("[OK] 本地目录: " + logExtractManage.localRoot)
         appendOp("[OK] 系统: YOCTO / TBOX / Android  ← 型号见 config/logcfg.json")
+        root.refreshConnections()
     }
 
     // ===== 左侧控制台 =====
@@ -115,7 +267,7 @@ Rectangle {
 
             Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: "#1e293b" }
 
-            // 状态指示
+            // 状态指示：拉取中绿闪 / 完成常亮绿 / 失败或无设备红
             Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 72
@@ -123,33 +275,40 @@ Rectangle {
                 color: "#0b1220"
                 border {
                     width: 1
-                    color: root.phase === "nodevice" ? "#7f1d1d"
-                         : root.phase === "extracting" ? "#155e75"
-                         : root.phase === "done" ? "#14532d"
-                         : root.phase === "fail" ? "#7f1d1d" : "#1e293b"
+                    color: root.phase === "extracting" || root.phase === "done" ? "#14532d"
+                         : root.phase === "nodevice" || root.phase === "fail" ? "#7f1d1d"
+                         : "#1e293b"
                 }
 
                 Row {
                     anchors.centerIn: parent; spacing: 12
                     Rectangle {
+                        id: statusDot
                         width: 10; height: 10; radius: 5
                         anchors.verticalCenter: parent.verticalCenter
-                        color: root.phase === "extracting" ? "#22d3ee"
-                             : root.phase === "done" ? "#34d399"
+                        color: root.phase === "extracting" || root.phase === "done" ? "#34d399"
                              : root.phase === "nodevice" || root.phase === "fail" ? "#f87171"
                              : "#64748b"
                         SequentialAnimation on opacity {
                             running: root.phase === "extracting"
                             loops: Animation.Infinite
-                            NumberAnimation { from: 1; to: 0.35; duration: 700 }
-                            NumberAnimation { from: 0.35; to: 1; duration: 700 }
+                            NumberAnimation { from: 1; to: 0.25; duration: 550 }
+                            NumberAnimation { from: 0.25; to: 1; duration: 550 }
                         }
+                        onVisibleChanged: if (root.phase !== "extracting") opacity = 1
+                    }
+                    // 非闪烁时强制常亮
+                    Binding {
+                        target: statusDot
+                        property: "opacity"
+                        value: 1
+                        when: root.phase !== "extracting"
                     }
                     Column {
                         spacing: 4
                         Text {
                             text: root.phase === "nodevice" ? "无设备连接"
-                                : root.phase === "extracting" ? "正在提取全部日志…"
+                                : root.phase === "extracting" ? "正在提取日志…"
                                 : root.phase === "done" ? "提取完成"
                                 : root.phase === "fail" ? "提取失败 / 部分失败"
                                 : "待机 · 等待提取"
@@ -179,82 +338,21 @@ Rectangle {
 
             Item { Layout.fillHeight: true }
 
-            // 提取所有日志
-            Rectangle {
-                Layout.fillWidth: true
-                Layout.preferredHeight: 52
-                radius: 8
-                color: extractMouse.containsMouse ? "#083344" : "#0b1220"
-                border {
-                    width: 1
-                    color: root.phase === "extracting" ? "#334155"
-                         : (extractMouse.containsMouse ? "#22d3ee" : "#1e293b")
-                }
-                opacity: root.phase === "extracting" ? 0.55 : 1.0
-
-                Row {
-                    anchors.centerIn: parent; spacing: 10
-                    Rectangle {
-                        width: 8; height: 8; radius: 4
-                        anchors.verticalCenter: parent.verticalCenter
-                        color: "#22d3ee"
-                    }
-                    Text {
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: root.phase === "extracting" ? "提取中…" : "提取所有日志"
-                        font.pixelSize: 16; font.weight: Font.Medium
-                        color: "#e2e8f0"
-                    }
-                }
-
-                MouseArea {
-                    id: extractMouse
-                    anchors.fill: parent
-                    hoverEnabled: root.phase !== "extracting"
-                    cursorShape: root.phase === "extracting" ? Qt.ArrowCursor : Qt.PointingHandCursor
-                    enabled: root.phase !== "extracting"
-                    onClicked: {
-                        root.phase = "extracting"
-                        logExtractManage.extractAll()
-                    }
+            ActionBtn {
+                label: root.phase === "extracting" ? "提取中…" : "提取所有日志"
+                iconSource: root.iconExtractAll
+                busy: root.phase === "extracting"
+                onClicked: {
+                    root.phase = "extracting"
+                    logExtractManage.extractAll()
                 }
             }
 
-            // 清空本地日志
-            Rectangle {
-                Layout.fillWidth: true
-                Layout.preferredHeight: 52
-                radius: 8
-                color: clearMouse.containsMouse ? "#3f1d1d" : "#0b1220"
-                border {
-                    width: 1
-                    color: clearMouse.containsMouse ? "#f87171" : "#1e293b"
-                }
-                opacity: root.phase === "extracting" ? 0.45 : 1.0
-
-                Row {
-                    anchors.centerIn: parent; spacing: 10
-                    Rectangle {
-                        width: 8; height: 8; radius: 4
-                        anchors.verticalCenter: parent.verticalCenter
-                        color: "#f87171"
-                    }
-                    Text {
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: "清空本地日志"
-                        font.pixelSize: 16; font.weight: Font.Medium
-                        color: "#e2e8f0"
-                    }
-                }
-
-                MouseArea {
-                    id: clearMouse
-                    anchors.fill: parent
-                    hoverEnabled: root.phase !== "extracting"
-                    enabled: root.phase !== "extracting"
-                    cursorShape: root.phase === "extracting" ? Qt.ArrowCursor : Qt.PointingHandCursor
-                    onClicked: confirmClear.open()
-                }
+            ActionBtn {
+                label: "清空本地日志"
+                iconSource: root.iconClear
+                busy: root.phase === "extracting"
+                onClicked: confirmClear.open()
             }
         }
     }
@@ -284,17 +382,58 @@ Rectangle {
                 Layout.fillWidth: true; spacing: 12
                 Item { Layout.fillWidth: true }
                 Rectangle {
-                    implicitWidth: 88; implicitHeight: 36; radius: 6
-                    color: "#1e293b"; border { color: "#334155"; width: 1 }
-                    Text { anchors.centerIn: parent; text: "取消"; color: "#cbd5e1"; font.pixelSize: 14 }
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: confirmClear.close() }
+                    id: cancelBtn
+                    implicitWidth: 96; implicitHeight: 36; radius: 8
+                    scale: cancelMa.pressed ? 0.97 : 1.0
+                    color: cancelMa.pressed ? "#0f172a"
+                         : (cancelMa.containsMouse ? "#0f2a1f" : "#1e293b")
+                    border {
+                        width: 1
+                        color: (cancelMa.containsMouse || cancelMa.pressed) ? "#34d399" : "#334155"
+                    }
+                    Behavior on color { ColorAnimation { duration: 120 } }
+                    Behavior on border.color { ColorAnimation { duration: 120 } }
+                    Text {
+                        anchors.centerIn: parent; text: "取消"; font.pixelSize: 14
+                        color: (cancelMa.containsMouse || cancelMa.pressed) ? "#34d399" : "#cbd5e1"
+                    }
+                    MouseArea {
+                        id: cancelMa
+                        anchors.fill: parent; hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: confirmClear.close()
+                    }
                 }
                 Rectangle {
-                    implicitWidth: 88; implicitHeight: 36; radius: 6
-                    color: "#7f1d1d"; border { color: "#f87171"; width: 1 }
-                    Text { anchors.centerIn: parent; text: "清空"; color: "#fecaca"; font.pixelSize: 14 }
+                    id: confirmBtn
+                    implicitWidth: 96; implicitHeight: 36; radius: 8
+                    scale: confirmMa.pressed ? 0.97 : 1.0
+                    color: confirmMa.pressed ? "#064e3b"
+                         : (confirmMa.containsMouse ? "#0f2a1f" : "#1e293b")
+                    border {
+                        width: 1
+                        color: (confirmMa.containsMouse || confirmMa.pressed) ? "#34d399" : "#334155"
+                    }
+                    Behavior on color { ColorAnimation { duration: 120 } }
+                    Behavior on border.color { ColorAnimation { duration: 120 } }
+                    Row {
+                        anchors.centerIn: parent; spacing: 6
+                        Image {
+                            width: 14; height: 14
+                            anchors.verticalCenter: parent.verticalCenter
+                            source: root.iconClear
+                            fillMode: Image.PreserveAspectFit
+                        }
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "清空"; font.pixelSize: 14
+                            color: (confirmMa.containsMouse || confirmMa.pressed) ? "#34d399" : "#cbd5e1"
+                        }
+                    }
                     MouseArea {
-                        anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                        id: confirmMa
+                        anchors.fill: parent; hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
                         onClicked: {
                             confirmClear.close()
                             logExtractManage.clearLocalLogs()
@@ -335,12 +474,20 @@ Rectangle {
                 Item { Layout.fillWidth: true }
                 Text { text: opLogModel.count + " 条"; font.pixelSize: 12; color: "#64748b" }
                 Rectangle {
-                    Layout.preferredWidth: 60; Layout.preferredHeight: 28; radius: 4
-                    color: clearLogMouse.containsMouse ? "#1e293b" : "transparent"
-                    border { color: "#334155"; width: 1 }
+                    id: clearLogBtn
+                    Layout.preferredWidth: 72; Layout.preferredHeight: 28; radius: 6
+                    scale: clearLogMouse.pressed ? 0.96 : 1.0
+                    color: clearLogMouse.pressed ? "#0f172a"
+                         : (clearLogMouse.containsMouse ? "#0f2a1f" : "transparent")
+                    border {
+                        width: 1
+                        color: (clearLogMouse.containsMouse || clearLogMouse.pressed) ? "#34d399" : "#334155"
+                    }
+                    Behavior on color { ColorAnimation { duration: 120 } }
+                    Behavior on border.color { ColorAnimation { duration: 120 } }
                     Text {
                         anchors.centerIn: parent; text: "清空"; font.pixelSize: 12
-                        color: clearLogMouse.containsMouse ? "#e2e8f0" : "#94a3b8"
+                        color: (clearLogMouse.containsMouse || clearLogMouse.pressed) ? "#34d399" : "#94a3b8"
                     }
                     MouseArea {
                         id: clearLogMouse
@@ -470,9 +617,53 @@ Rectangle {
             anchors { fill: parent; margins: 24 }
             spacing: 16
 
-            Text {
-                text: "提取说明"
-                font.pixelSize: 18; font.weight: Font.Bold; color: "#e2e8f0"
+            RowLayout {
+                Layout.fillWidth: true
+                Text {
+                    text: "提取说明"
+                    font.pixelSize: 18; font.weight: Font.Bold; color: "#e2e8f0"
+                }
+                Item { Layout.fillWidth: true }
+                Rectangle {
+                    id: refreshConnBtn
+                    Layout.preferredWidth: 108
+                    Layout.preferredHeight: 36
+                    radius: 8
+                    opacity: (root.phase === "extracting" || root.refreshingConn) ? 0.55 : 1.0
+                    scale: refreshMa.pressed && refreshMa.enabled ? 0.97 : 1.0
+                    color: !refreshMa.enabled ? "#1e293b"
+                         : (refreshMa.pressed ? "#064e3b"
+                         : (refreshMa.containsMouse ? "#0f2a1f" : "#1e293b"))
+                    border {
+                        width: 1
+                        color: (refreshMa.enabled && (refreshMa.containsMouse || refreshMa.pressed)) ? "#34d399" : "#334155"
+                    }
+                    Behavior on color { ColorAnimation { duration: 120 } }
+                    Behavior on border.color { ColorAnimation { duration: 120 } }
+                    Row {
+                        anchors.centerIn: parent; spacing: 6
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "\u21BB"
+                            font.pixelSize: 16
+                            color: (refreshMa.enabled && (refreshMa.containsMouse || refreshMa.pressed)) ? "#34d399" : "#cbd5e1"
+                        }
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: root.refreshingConn ? "刷新中" : "刷新"
+                            font.pixelSize: 14; font.weight: Font.Medium
+                            color: (refreshMa.enabled && (refreshMa.containsMouse || refreshMa.pressed)) ? "#34d399" : "#cbd5e1"
+                        }
+                    }
+                    MouseArea {
+                        id: refreshMa
+                        anchors.fill: parent
+                        hoverEnabled: root.phase !== "extracting" && !root.refreshingConn
+                        enabled: root.phase !== "extracting" && !root.refreshingConn
+                        cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                        onClicked: root.refreshConnections()
+                    }
+                }
             }
             Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: "#1e293b" }
 
@@ -484,29 +675,38 @@ Rectangle {
 
                 Repeater {
                     model: [
-                        { title: "YOCTO",  accent: "#22c55e", tip: "型号见 logcfg → systems.YOCTO", tag: "mobilelog-Y" },
-                        { title: "TBOX",   accent: "#f59e0b", tip: "默认 127.0.0.1:7667", tag: "mobilelog-T" },
-                        { title: "Android", accent: "#60a5fa", tip: "默认 127.0.0.1:7666", tag: "mobilelog-A" }
+                        { title: "YOCTO",  tip: "型号见 logcfg → systems.YOCTO", tag: "mobilelog-Y" },
+                        { title: "TBOX",   tip: "默认 127.0.0.1:7667", tag: "mobilelog-T" },
+                        { title: "Android", tip: "默认 127.0.0.1:7666", tag: "mobilelog-A" }
                     ]
                     delegate: Rectangle {
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 200
+                        Layout.preferredHeight: 210
                         radius: 10
                         color: "#0b1220"
-                        border { color: "#1e293b"; width: 1 }
+                        border {
+                            width: 1
+                            color: root.systemOnlineOf(modelData.title) ? "#14532d" : "#7f1d1d"
+                        }
 
                         Column {
                             anchors.fill: parent; anchors.margins: 14; spacing: 8
                             Row {
                                 spacing: 8
                                 Rectangle {
-                                    width: 8; height: 8; radius: 4
+                                    width: 10; height: 10; radius: 5
                                     anchors.verticalCenter: parent.verticalCenter
-                                    color: modelData.accent
+                                    color: root.systemOnlineOf(modelData.title) ? "#34d399" : "#f87171"
                                 }
                                 Text {
                                     text: modelData.title
                                     font.pixelSize: 16; font.weight: Font.Bold; color: "#e2e8f0"
+                                }
+                                Text {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: root.systemOnlineOf(modelData.title) ? "已连接·可拉取" : "未连接·不可拉取"
+                                    font.pixelSize: 12
+                                    color: root.systemOnlineOf(modelData.title) ? "#34d399" : "#f87171"
                                 }
                             }
                             Text {
@@ -530,55 +730,19 @@ Rectangle {
                             Row {
                                 spacing: 8
                                 width: parent.width
-                                Rectangle {
+                                MiniActionBtn {
                                     width: (parent.width - 8) / 2
-                                    height: 34
-                                    radius: 6
-                                    color: extractOneMouse.containsMouse ? "#083344" : "#111827"
-                                    border {
-                                        width: 1
-                                        color: root.phase === "extracting" ? "#334155"
-                                             : (extractOneMouse.containsMouse ? modelData.accent : "#1e293b")
-                                    }
-                                    opacity: root.phase === "extracting" ? 0.5 : 1.0
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: "提取日志"
-                                        font.pixelSize: 13; font.weight: Font.Medium; color: "#e2e8f0"
-                                    }
-                                    MouseArea {
-                                        id: extractOneMouse
-                                        anchors.fill: parent
-                                        hoverEnabled: root.phase !== "extracting"
-                                        enabled: root.phase !== "extracting"
-                                        cursorShape: root.phase === "extracting" ? Qt.ArrowCursor : Qt.PointingHandCursor
-                                        onClicked: root.extractOne(modelData.title)
-                                    }
+                                    label: "提取日志"
+                                    iconSource: root.iconExtract
+                                    busy: root.phase === "extracting"
+                                    onClicked: root.extractOne(modelData.title)
                                 }
-                                Rectangle {
+                                MiniActionBtn {
                                     width: (parent.width - 8) / 2
-                                    height: 34
-                                    radius: 6
-                                    color: pathMouse.containsMouse ? "#1e293b" : "#111827"
-                                    border {
-                                        width: 1
-                                        color: root.phase === "extracting" ? "#334155"
-                                             : (pathMouse.containsMouse ? "#94a3b8" : "#1e293b")
-                                    }
-                                    opacity: root.phase === "extracting" ? 0.5 : 1.0
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: "路径选择"
-                                        font.pixelSize: 13; font.weight: Font.Medium; color: "#cbd5e1"
-                                    }
-                                    MouseArea {
-                                        id: pathMouse
-                                        anchors.fill: parent
-                                        hoverEnabled: root.phase !== "extracting"
-                                        enabled: root.phase !== "extracting"
-                                        cursorShape: root.phase === "extracting" ? Qt.ArrowCursor : Qt.PointingHandCursor
-                                        onClicked: root.pickPathFor(modelData.title)
-                                    }
+                                    label: "路径保存"
+                                    iconSource: root.iconFolder
+                                    busy: root.phase === "extracting"
+                                    onClicked: root.pickPathFor(modelData.title)
                                 }
                             }
                         }
@@ -614,7 +778,7 @@ Rectangle {
                             + "5) adb -s <serial> pull /data/debuglogger/mobilelog <本地目录>\n"
                             + "6) 目录名: YOCTO→mobilelog-Y  TBOX→mobilelog-T  Android→mobilelog-A\n"
                             + "   重复则 mobilelog-Y(1) / mobilelog-T(1)…（ASCII 括号）\n\n"
-                            + "可对单系统点「提取日志」；「路径选择」可自定义该系统保存目录。"
+                            + "可对单系统点「提取日志」；「路径保存」可自定义该系统保存目录。"
                     }
 
                     // 无设备时醒目提示条

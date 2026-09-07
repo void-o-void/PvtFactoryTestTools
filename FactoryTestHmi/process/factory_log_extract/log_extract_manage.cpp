@@ -30,6 +30,8 @@ LogExtractManage::~LogExtractManage()
     requestStop();
     if (m_worker.joinable())
         m_worker.join();
+    if (m_refreshWorker.joinable())
+        m_refreshWorker.join();
 }
 
 void LogExtractManage::requestStop()
@@ -211,6 +213,96 @@ QString LogExtractManage::resolveSystemDir(const QString &systemName, const QStr
 QString LogExtractManage::systemSavePath(const QString &systemName) const
 {
     return resolveSystemDir(systemName, QString());
+}
+
+bool LogExtractManage::isSystemOnline(const QString &systemName) const
+{
+    if (systemName.compare(QStringLiteral("YOCTO"), Qt::CaseInsensitive) == 0)
+        return m_yoctoOnline;
+    if (systemName.compare(QStringLiteral("TBOX"), Qt::CaseInsensitive) == 0)
+        return m_tboxOnline;
+    if (systemName.compare(QStringLiteral("Android"), Qt::CaseInsensitive) == 0)
+        return m_androidOnline;
+    return false;
+}
+
+bool LogExtractManage::probeSystemOnline(const QString &systemName)
+{
+    const QStringList serials = LogCfg::getDevices(systemName);
+    if (serials.isEmpty())
+        return false;
+
+    // 先看当前 devices；IP:port 未出现则尝试 connect 后再查
+    QStringList devices = listAdbDevices();
+    for (const QString &serial : serials) {
+        if (devices.contains(serial))
+            return true;
+    }
+
+    for (const QString &serial : serials) {
+        if (m_abort.load())
+            return false;
+        QString host;
+        int port = 0;
+        if (!isIpPortSerial(serial, &host, &port))
+            continue;
+
+        int code = 0;
+        const int forwardRemote = LogCfg::forwardRemotePort();
+        runAdb({
+            "-d", "forward",
+            QString("tcp:%1").arg(port),
+            QString("tcp:%1").arg(forwardRemote)
+        }, 8000, &code);
+        if (m_abort.load())
+            return false;
+        runAdb({"connect", serial}, 12000, &code);
+        if (m_abort.load())
+            return false;
+
+        devices = listAdbDevices();
+        if (devices.contains(serial))
+            return true;
+    }
+    return false;
+}
+
+void LogExtractManage::refreshConnectionStatus()
+{
+    if (m_refreshing.load() || m_extracting.load()) {
+        emitLog(QStringLiteral("[WARN] 正在忙，稍后再刷新连接状态"));
+        return;
+    }
+    if (m_refreshWorker.joinable())
+        m_refreshWorker.join();
+
+    m_refreshing = true;
+    m_abort.store(false);
+    setStatus(QStringLiteral("刷新连接中…"));
+    emitLog(QStringLiteral("[OK] 开始刷新 YOCTO / TBOX / Android 连接状态"));
+
+    m_refreshWorker = std::thread([this]() { refreshConnectionWorker(); });
+}
+
+void LogExtractManage::refreshConnectionWorker()
+{
+    const bool y = probeSystemOnline(QStringLiteral("YOCTO"));
+    const bool t = probeSystemOnline(QStringLiteral("TBOX"));
+    const bool a = probeSystemOnline(QStringLiteral("Android"));
+
+    emitLog(QStringLiteral("[OK] YOCTO: %1").arg(y ? QStringLiteral("已连接(绿)") : QStringLiteral("未连接(红)")));
+    emitLog(QStringLiteral("[OK] TBOX: %1").arg(t ? QStringLiteral("已连接(绿)") : QStringLiteral("未连接(红)")));
+    emitLog(QStringLiteral("[OK] Android: %1").arg(a ? QStringLiteral("已连接(绿)") : QStringLiteral("未连接(红)")));
+
+    QMetaObject::invokeMethod(this, [this, y, t, a]() {
+        m_yoctoOnline = y;
+        m_tboxOnline = t;
+        m_androidOnline = a;
+        m_refreshing = false;
+        setStatus(QStringLiteral("连接状态已更新"));
+        emit connectionStatusChanged();
+        emit connectionRefreshFinished();
+    }, Qt::QueuedConnection);
 }
 
 QString LogExtractManage::pickDirectory(const QString &startPath)

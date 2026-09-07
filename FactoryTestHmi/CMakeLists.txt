@@ -75,6 +75,10 @@ qt_add_qml_module(FactoryTestModule
             hmi/factory_log_extract/UiLogExtract.qml
         RESOURCES
             resources/pvt.png
+            resources/ic_log_extract_all.png
+            resources/ic_log_clear.png
+            resources/ic_log_extract.png
+            resources/ic_log_folder.png
 )
 
 # 运行目录可直接读到 logcfg.json

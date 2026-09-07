@@ -224,6 +224,9 @@ class LogExtractManage : public QObject {
     Q_PROPERTY(bool extracting READ extracting NOTIFY extractingChanged)
     Q_PROPERTY(QString localRoot READ localRoot NOTIFY localRootChanged)
     Q_PROPERTY(QString statusText READ statusText NOTIFY statusTextChanged)
+    Q_PROPERTY(bool yoctoOnline READ yoctoOnline NOTIFY connectionStatusChanged)
+    Q_PROPERTY(bool tboxOnline READ tboxOnline NOTIFY connectionStatusChanged)
+    Q_PROPERTY(bool androidOnline READ androidOnline NOTIFY connectionStatusChanged)
 
 public:
     Q_INVOKABLE void extractAll();
@@ -234,10 +237,16 @@ public:
     Q_INVOKABLE QString pickDirectory(const QString &startPath = QString());
     /** 某系统当前保存路径（自定义优先，否则默认 FactoryLogs/系统名） */
     Q_INVOKABLE QString systemSavePath(const QString &systemName) const;
+    /** 刷新 YOCTO / TBOX / Android 是否已在 adb devices 中（可拉取） */
+    Q_INVOKABLE void refreshConnectionStatus();
+    Q_INVOKABLE bool isSystemOnline(const QString &systemName) const;
 
     bool extracting() const { return m_extracting.load(); }
     QString localRoot() const { return m_localRoot; }
     QString statusText() const { return m_statusText; }
+    bool yoctoOnline() const { return m_yoctoOnline; }
+    bool tboxOnline() const { return m_tboxOnline; }
+    bool androidOnline() const { return m_androidOnline; }
 
 signals:
     void logMessage(const QString &msg);
@@ -247,6 +256,8 @@ signals:
     void localRootChanged();
     void statusTextChanged();
     void localCleared(bool ok, const QString &msg);
+    void connectionStatusChanged();
+    void connectionRefreshFinished();
 
 private:
     LogExtractManage(QObject *parent = nullptr);
@@ -271,15 +282,22 @@ private:
     bool isIpPortSerial(const QString &serial, QString *host = nullptr, int *port = nullptr) const;
     void extractAllWorker();
     void extractSystemWorker(const QString &systemName, const QString &saveDir);
+    bool probeSystemOnline(const QString &systemName);
+    void refreshConnectionWorker();
 
     QString m_localRoot;
     QString m_statusText;
+    bool m_yoctoOnline = false;
+    bool m_tboxOnline = false;
+    bool m_androidOnline = false;
 
     std::atomic<bool> m_extracting{false};
     std::atomic<bool> m_abort{false};
+    std::atomic<bool> m_refreshing{false};
     std::mutex m_adbMutex;
     QProcess *m_adbProc = nullptr;
     std::thread m_worker;
+    std::thread m_refreshWorker;
 };
 
 #endif
