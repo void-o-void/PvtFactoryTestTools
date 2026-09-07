@@ -27,8 +27,11 @@ file(GLOB SRC_LIST
         "process/factory_fun_test/*.hpp"
         "process/factory_aging_test/*.hpp"
         "process/factory_aging_test/*.cpp"
+        "process/factory_log_extract/*.hpp"
+        "process/factory_log_extract/*.cpp"
         "process/*.cpp"
         "common/*.hpp"
+        "common/*.cpp"
 )
 
 add_executable(FactoryTestModule WIN32 ${SRC_LIST} resources/resources.qrc)
@@ -38,6 +41,7 @@ include_directories(FactoryTestModule
         "common/protocol_core"
         "process/factory_fun_test"
         "process/factory_aging_test"
+        "process/factory_log_extract"
 )
 
 target_link_libraries(FactoryTestModule PRIVATE
@@ -68,8 +72,18 @@ qt_add_qml_module(FactoryTestModule
             hmi/factory_aging_test/UiAgingTest.qml
             hmi/factory_aging_test/UiAgingTestCard.qml
             hmi/factory_aging_test/UiAgingTestRtLog.qml
+            hmi/factory_log_extract/UiLogExtract.qml
         RESOURCES
             resources/pvt.png
+)
+
+# 运行目录可直接读到 logcfg.json
+add_custom_command(TARGET FactoryTestModule POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:FactoryTestModule>/config"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_CURRENT_SOURCE_DIR}/config/logcfg.json"
+            "$<TARGET_FILE_DIR:FactoryTestModule>/config/logcfg.json"
+        COMMENT "Copying logcfg.json to output directory..."
 )
 
 if(WIN32)

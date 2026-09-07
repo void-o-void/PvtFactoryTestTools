@@ -57,6 +57,15 @@ void TestManage::switchToFunctional() {
     reset();                                          // 功能测试 UI 回 Idle
 }
 
+// ==================== switchToLogExtract ====================
+void TestManage::switchToLogExtract() {
+    AmingTestManage::instance()->reset();
+    if (m_connect_protocol)
+        m_connect_protocol->clearQueue();
+    m_mode = TestMode::FUNC;
+    reset();
+}
+
 // ==================== reset ====================
 void TestManage::reset() {
     if (m_flowController) {
@@ -111,13 +120,14 @@ TestManage::TestManage() {
 
 TestManage::~TestManage() {
     m_working = false;
-    if (m_worker.joinable()) m_worker.join();
-
+    // 先停协议并唤醒阻塞在 pull() 的线程，再 join，避免退出时卡死
     if (m_connect_protocol) {
         m_connect_protocol->reset();
         delete m_connect_protocol;
         m_connect_protocol = nullptr;
     }
+    if (m_worker.joinable())
+        m_worker.join();
 }
 
 // ==================== handleMsg ====================

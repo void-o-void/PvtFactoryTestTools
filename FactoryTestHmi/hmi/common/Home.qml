@@ -25,10 +25,10 @@ Window {
             cursorShape: Qt.ArrowCursor
             property point lastPos: Qt.point(0, 0)
 
-            onPressed: {
+            onPressed: function(mouse) {
                 lastPos = Qt.point(mouse.x, mouse.y)
             }
-            onPositionChanged: {
+            onPositionChanged: function(mouse) {
                 if (pressed) {
                     var delta = Qt.point(mouse.x - lastPos.x, mouse.y - lastPos.y)
                     root.x += delta.x
@@ -52,7 +52,12 @@ Window {
         width: 1888; height: 96
 
         onViewChanged: function(name) {
-            viewLoader.sourceComponent = (name === "老化测试") ? agingComp : factoryComp
+            if (name === "老化测试")
+                viewLoader.sourceComponent = agingComp
+            else if (name === "日志提取")
+                viewLoader.sourceComponent = logExtractComp
+            else
+                viewLoader.sourceComponent = factoryComp
         }
     }
 
@@ -78,5 +83,11 @@ Window {
     Component {
         id: agingComp
         UiAgingTest { }
+    }
+
+    // 日志提取界面
+    Component {
+        id: logExtractComp
+        UiLogExtract { }
     }
 }

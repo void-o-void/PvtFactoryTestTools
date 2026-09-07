@@ -100,7 +100,9 @@ Rectangle {
                 // 当前视图指示点
                 Rectangle {
                     width: 8; height: 8; radius: 4
-                    color: topHeader.currentView === "功能测试" ? "#60a5fa" : "#f59e0b"
+                    color: topHeader.currentView === "功能测试" ? "#60a5fa"
+                         : topHeader.currentView === "老化测试" ? "#f59e0b"
+                         : "#22d3ee"
                     anchors.verticalCenter: parent.verticalCenter
                 }
                 Text {
@@ -207,6 +209,41 @@ Rectangle {
                                 topHeader.currentView = "老化测试"
                                 topHeader.viewChanged("老化测试")
                                 testManage.switchToAging()
+                                navPopup.close()
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        width: parent.width; height: 42; radius: 6
+                        color: topHeader.currentView === "日志提取" ? "#1e3a5f" :
+                               (logExtractMouse.containsMouse ? "#1e293b" : "transparent")
+                        Behavior on color { ColorAnimation { duration: 120 } }
+
+                        Row {
+                            anchors.centerIn: parent; spacing: 10
+                            Rectangle {
+                                width: 6; height: 6; radius: 3
+                                color: topHeader.currentView === "日志提取" ? "#22d3ee" : "#475569"
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+                            Text {
+                                text: "日志提取"
+                                font.pixelSize: 14
+                                color: topHeader.currentView === "日志提取" ? "#22d3ee" : "#94a3b8"
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+                        }
+
+                        MouseArea {
+                            id: logExtractMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                topHeader.currentView = "日志提取"
+                                topHeader.viewChanged("日志提取")
+                                testManage.switchToLogExtract()
                                 navPopup.close()
                             }
                         }

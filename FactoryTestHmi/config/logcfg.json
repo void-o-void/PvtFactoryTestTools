@@ -1,0 +1,17 @@
+{
+    "adb_path": "adb",
+    "remote_path": "/data/debuglogger/mobilelog",
+    "local_root": "",
+    "forward_remote_port": 6666,
+    "systems": {
+        "YOCTO": [
+            "YOCTO"
+        ],
+        "TBOX": [
+            "127.0.0.1:7667"
+        ],
+        "Android": [
+            "127.0.0.1:7666"
+        ]
+    }
+}

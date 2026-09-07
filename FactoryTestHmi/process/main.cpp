@@ -1,7 +1,7 @@
 //
 // Created by LEGION on 2026/4/18.
 //
-#include <QGuiApplication>
+#include <QApplication>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QIcon>
@@ -14,11 +14,13 @@
 #include "test_rt_model.hpp"
 #include "test_manage.hpp"
 #include "aging_test_manage.hpp"
+#include "log_extract_manage.hpp"
 
 #include <QQuickStyle>
 
 int main(int argc, char *argv[]) {
-    QGuiApplication app(argc, argv);
+    // 需 QApplication：路径选择用到 QFileDialog（QWidget）
+    QApplication app(argc, argv);
     qDebug() << "Resource exists?" << QFile::exists("qrc:/pvt.png");
     app.setWindowIcon(QIcon(":/pvt.png"));
     qDebug() << "Icon exists:" << QFile::exists(":/pvt.png");
@@ -46,9 +48,11 @@ int main(int argc, char *argv[]) {
     RtModel *model = RtModel::instance();
     TestManage* mgr = TestManage::instance();
     AmingTestManage* agingMgr = AmingTestManage::instance();
+    LogExtractManage* logExtractMgr = LogExtractManage::instance();
     engine.rootContext()->setContextProperty("rtModel", model);
     engine.rootContext()->setContextProperty("testManage", mgr);
     engine.rootContext()->setContextProperty("agingTestManage", agingMgr);
+    engine.rootContext()->setContextProperty("logExtractManage", logExtractMgr);
     engine.rootContext()->setContextProperty("Config", Config::instance());
 
     QObject::connect(
