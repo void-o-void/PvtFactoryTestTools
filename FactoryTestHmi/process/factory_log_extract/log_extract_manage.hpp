@@ -15,6 +15,7 @@
 #include <thread>
 
 #include "common.hpp"
+#include "adb_device_query.hpp"
 
 class QProcess;
 
@@ -35,14 +36,15 @@ public:
     /** 系统列表，默认 YOCTO / TBOX / Android */
     static QStringList systemNames();
 
-    /** 取某系统全部型号；system 大小写不敏感 */
-    static QStringList getDevices(const QString &system);
+    /** 取某系统在 logcfg 中配置的全部型号（不含在线过滤） */
+    static QStringList configuredDevices(const QString &system);
 
     static QString adbPath();
     static QString remotePath();
     /** 空配置时返回 exe 同级 FactoryLogs */
     static QString localRoot();
-    static int forwardRemotePort();
+    /** 本地端口 → 远端端口：7665→6665，7666→6666，7667→6667 */
+    static int forwardRemotePort(int localPort);
 
 private:
     LogCfg() = delete;
@@ -72,11 +74,10 @@ inline QJsonObject LogCfg::defaultConfig()
         {"adb_path", "adb"},
         {"remote_path", "/data/debuglogger/mobilelog"},
         {"local_root", ""},
-        {"forward_remote_port", 6666},
         {"systems", QJsonObject{
-            {"YOCTO", QJsonArray{"YOCTO"}},
+            {"YOCTO", QJsonArray{"YOCTO", "127.0.0.1:7665"}},
             {"TBOX", QJsonArray{"127.0.0.1:7667"}},
-            {"Android", QJsonArray{"127.0.0.1:7666"}}
+            {"Android", QJsonArray{"127.0.0.1:7666", "0123456789ABCDEF"}}
         }}
     };
 }
@@ -173,7 +174,7 @@ inline QString LogCfg::normalizeSystemKey(const QString &system)
     return system.trimmed();
 }
 
-inline QStringList LogCfg::getDevices(const QString &system)
+inline QStringList LogCfg::configuredDevices(const QString &system)
 {
     load();
     const QString key = normalizeSystemKey(system);
@@ -211,10 +212,12 @@ inline QString LogCfg::localRoot()
     return QDir::cleanPath(QCoreApplication::applicationDirPath() + QStringLiteral("/FactoryLogs"));
 }
 
-inline int LogCfg::forwardRemotePort()
+inline int LogCfg::forwardRemotePort(int localPort)
 {
-    load();
-    return state().root.value(QStringLiteral("forward_remote_port")).toInt(6666);
+    // adb -d forward tcp:7665 tcp:6665 等
+    if (localPort >= 1000)
+        return localPort - 1000;
+    return 6666;
 }
 
 class LogExtractManage : public QObject {
@@ -272,8 +275,15 @@ private:
     QString adbBin() const;
 
     QString runAdb(const QStringList &args, int timeoutMs = 60000, int *exitCode = nullptr);
-    QStringList listAdbDevices();
+    /** 连接前统一执行一次 adb kill-server / start-server */
+    bool restartAdbServer();
+    /** 进程生命周期内只执行一次 kill-server/start-server */
+    bool ensureAdbServerOnce();
     bool ensureDeviceReady(const QString &serial);
+    /** 若型号为 offline：adb disconnect 后再按需重连；返回是否已处理离线 */
+    bool disconnectIfOffline(const QString &serial);
+    /** IP 型号：forward + connect；USB 型号：仅检查在线 */
+    bool connectSerial(const QString &serial);
     bool pullSystemLogs(const QString &systemName, const QString &serial, const QString &saveDir);
     QString uniqueTargetPath(const QString &dir, const QString &baseName) const;
     QString mobilelogBaseName(const QString &systemName) const;
@@ -294,6 +304,7 @@ private:
     std::atomic<bool> m_extracting{false};
     std::atomic<bool> m_abort{false};
     std::atomic<bool> m_refreshing{false};
+    std::atomic<bool> m_adbServerReady{false};
     std::mutex m_adbMutex;
     QProcess *m_adbProc = nullptr;
     std::thread m_worker;

@@ -1,4 +1,5 @@
 #include "log_extract_manage.hpp"
+#include "adb_device_query.hpp"
 
 #include <QCoreApplication>
 #include <QDir>
@@ -8,15 +9,16 @@
 #include <QProcess>
 #include <QRegularExpression>
 #include <QDateTime>
-
-// LogCfg 已合并至 log_extract_manage.hpp
-// #include "log_cfg.hpp"
+#include <QMetaObject>
+#include <chrono>
 
 LogExtractManage::LogExtractManage(QObject *parent)
     : QObject(parent)
 {
     loadConfig();
     setStatus("待机");
+    // 程序启动时只执行一次 adb kill-server / start-server
+    ensureAdbServerOnce();
     // 窗口关闭 / 退出时先打断 adb，避免 join 卡死
     if (qApp) {
         connect(qApp, &QCoreApplication::aboutToQuit, this, [this]() {
@@ -141,23 +143,7 @@ QString LogExtractManage::runAdb(const QStringList &args, int timeoutMs, int *ex
     }
     if (exitCode)
         *exitCode = proc.exitCode();
-    return QString::fromLocal8Bit(proc.readAll()).trimmed();
-}
-
-QStringList LogExtractManage::listAdbDevices()
-{
-    int code = 0;
-    const QString out = runAdb({"devices"}, 10000, &code);
-    QStringList serials;
-    const QStringList lines = out.split(QRegularExpression("[\r\n]+"), Qt::SkipEmptyParts);
-    for (const QString &line : lines) {
-        if (line.startsWith("List of devices"))
-            continue;
-        const QStringList parts = line.split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
-        if (parts.size() >= 2 && parts[1] == "device")
-            serials << parts[0];
-    }
-    return serials;
+    return AdbDeviceQuery::decodeOutput(proc.readAll());
 }
 
 bool LogExtractManage::isIpPortSerial(const QString &serial, QString *host, int *port) const
@@ -228,40 +214,37 @@ bool LogExtractManage::isSystemOnline(const QString &systemName) const
 
 bool LogExtractManage::probeSystemOnline(const QString &systemName)
 {
-    const QStringList serials = LogCfg::getDevices(systemName);
+    const QStringList serials = LogCfg::configuredDevices(systemName);
     if (serials.isEmpty())
         return false;
 
-    // 先看当前 devices；IP:port 未出现则尝试 connect 后再查
-    QStringList devices = listAdbDevices();
+    // 已连接：刷新时不动
+    if (!AdbDeviceQuery().getDevices(systemName).isEmpty())
+        return true;
+
     for (const QString &serial : serials) {
-        if (devices.contains(serial))
+        if (m_abort.load())
+            return false;
+
+        const QString status = AdbDeviceQuery().deviceStatus(serial);
+        // 该型号已是 device：跳过
+        if (status.compare(QStringLiteral("device"), Qt::CaseInsensitive) == 0)
             return true;
-    }
 
-    for (const QString &serial : serials) {
-        if (m_abort.load())
-            return false;
-        QString host;
-        int port = 0;
-        if (!isIpPortSerial(serial, &host, &port))
+        // 仅 offline：disconnect 后再重连
+        if (status.compare(QStringLiteral("offline"), Qt::CaseInsensitive) == 0) {
+            disconnectIfOffline(serial);
+            if (m_abort.load())
+                return false;
+            if (connectSerial(serial)
+                && !AdbDeviceQuery().getDevices(systemName).isEmpty())
+                return true;
             continue;
+        }
 
-        int code = 0;
-        const int forwardRemote = LogCfg::forwardRemotePort();
-        runAdb({
-            "-d", "forward",
-            QString("tcp:%1").arg(port),
-            QString("tcp:%1").arg(forwardRemote)
-        }, 8000, &code);
-        if (m_abort.load())
-            return false;
-        runAdb({"connect", serial}, 12000, &code);
-        if (m_abort.load())
-            return false;
-
-        devices = listAdbDevices();
-        if (devices.contains(serial))
+        // 未出现：正常尝试连接（不 disconnect）
+        if (connectSerial(serial)
+            && !AdbDeviceQuery().getDevices(systemName).isEmpty())
             return true;
     }
     return false;
@@ -286,6 +269,7 @@ void LogExtractManage::refreshConnectionStatus()
 
 void LogExtractManage::refreshConnectionWorker()
 {
+    // 刷新不再 kill-server；已连接系统在 probe 里直接跳过
     const bool y = probeSystemOnline(QStringLiteral("YOCTO"));
     const bool t = probeSystemOnline(QStringLiteral("TBOX"));
     const bool a = probeSystemOnline(QStringLiteral("Android"));
@@ -315,7 +299,23 @@ QString LogExtractManage::pickDirectory(const QString &startPath)
         QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
 }
 
-bool LogExtractManage::ensureDeviceReady(const QString &serial)
+bool LogExtractManage::disconnectIfOffline(const QString &serial)
+{
+    const QString status = AdbDeviceQuery().deviceStatus(serial);
+    if (status.compare(QStringLiteral("offline"), Qt::CaseInsensitive) != 0)
+        return false;
+
+    emitLog(QStringLiteral("[WARN] 检测到 %1 为 offline，执行 adb disconnect").arg(serial));
+    int code = 0;
+    const QString out = runAdb({"disconnect", serial}, 15000, &code);
+    if (m_abort.load())
+        return true;
+    emitLog(QStringLiteral("[OK] adb disconnect %1 | %2")
+                .arg(serial, out.isEmpty() ? QStringLiteral("done") : out));
+    return true;
+}
+
+bool LogExtractManage::connectSerial(const QString &serial)
 {
     if (m_abort.load())
         return false;
@@ -324,7 +324,8 @@ bool LogExtractManage::ensureDeviceReady(const QString &serial)
     int port = 0;
     if (isIpPortSerial(serial, &host, &port)) {
         int code = 0;
-        const int forwardRemote = LogCfg::forwardRemotePort();
+        // YOCTO 7665→6665 / Android 7666→6666 / TBOX 7667→6667
+        const int forwardRemote = LogCfg::forwardRemotePort(port);
         QString out = runAdb({
             "-d", "forward",
             QString("tcp:%1").arg(port),
@@ -341,20 +342,38 @@ bool LogExtractManage::ensureDeviceReady(const QString &serial)
             return false;
         emitLog(QString("[OK] connect %1 | %2").arg(serial, out));
 
-        const QStringList devices = listAdbDevices();
-        if (!devices.contains(serial)) {
-            emitLog(QString("[ERR] 连接后未在 adb devices 中看到: %1").arg(serial));
-            return false;
-        }
-        return true;
+        return AdbDeviceQuery().listAdbDevices().contains(serial);
     }
 
-    const QStringList devices = listAdbDevices();
-    if (!devices.contains(serial)) {
-        emitLog(QString("[WARN] 当前未看到设备序列号: %1").arg(serial));
+    return AdbDeviceQuery().listAdbDevices().contains(serial);
+}
+
+bool LogExtractManage::ensureDeviceReady(const QString &serial)
+{
+    if (m_abort.load())
+        return false;
+
+    // 已是 device：拉取时也不折腾
+    if (AdbDeviceQuery().deviceStatus(serial)
+            .compare(QStringLiteral("device"), Qt::CaseInsensitive) == 0)
+        return true;
+
+    // 仅 offline：disconnect 后重连
+    if (disconnectIfOffline(serial)) {
+        if (m_abort.load())
+            return false;
+        if (connectSerial(serial))
+            return true;
+        emitLog(QString("[ERR] offline 恢复后仍无法连接: %1").arg(serial));
         return false;
     }
-    return true;
+
+    // 未出现：正常连接
+    if (connectSerial(serial))
+        return true;
+
+    emitLog(QString("[ERR] 连接后未在 adb devices 中看到可用设备: %1").arg(serial));
+    return false;
 }
 
 bool LogExtractManage::pullSystemLogs(const QString &systemName, const QString &serial, const QString &saveDir)
@@ -402,11 +421,48 @@ bool LogExtractManage::pullSystemLogs(const QString &systemName, const QString &
     return true;
 }
 
+bool LogExtractManage::restartAdbServer()
+{
+    if (m_abort.load())
+        return false;
+
+    emitLog(QStringLiteral("[OK] adb kill-server …"));
+    int code = 0;
+    QString out = runAdb({"kill-server"}, 15000, &code);
+    if (m_abort.load())
+        return false;
+    emitLog(QStringLiteral("[OK] adb kill-server | %1")
+                .arg(out.isEmpty() ? QStringLiteral("done") : out));
+
+    emitLog(QStringLiteral("[OK] adb start-server …"));
+    out = runAdb({"start-server"}, 20000, &code);
+    if (m_abort.load())
+        return false;
+    emitLog(QStringLiteral("[OK] adb start-server | %1")
+                .arg(out.isEmpty() ? QStringLiteral("done") : out));
+
+    // 给 server 一点启动时间
+    for (int i = 0; i < 10 && !m_abort.load(); ++i)
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    return !m_abort.load();
+}
+
+bool LogExtractManage::ensureAdbServerOnce()
+{
+    if (m_adbServerReady.load())
+        return true;
+    if (!restartAdbServer())
+        return false;
+    m_adbServerReady.store(true);
+    return true;
+}
+
 bool LogExtractManage::prepareAdbSession()
 {
     emitLog(QString("[OK] 本地根目录: %1").arg(m_localRoot));
 
-    const QStringList devices = listAdbDevices();
+    // kill-server 仅启动时执行过一次，这里不再重复
+    const QStringList devices = AdbDeviceQuery().listAdbDevices();
     if (m_abort.load())
         return false;
 
@@ -483,9 +539,11 @@ void LogExtractManage::extractAllWorker()
     for (const QString &sysName : LogCfg::systemNames()) {
         if (m_abort.load())
             break;
-        const QStringList serials = LogCfg::getDevices(sysName);
+        // 只拉当前已连接的配置型号（每个系统通常只有一个在线）
+        const QStringList serials = AdbDeviceQuery().getDevices(sysName);
         if (serials.isEmpty()) {
-            emitLog(QString("[WARN] %1 未配置型号，跳过").arg(sysName));
+            emitLog(QString("[WARN] %1 当前无已连接型号，跳过").arg(sysName));
+            ++failCount;
             continue;
         }
         setStatus(QString("提取 %1…").arg(sysName));
@@ -534,16 +592,18 @@ void LogExtractManage::extractSystemWorker(const QString &systemName, const QStr
         return;
     }
 
-    const QStringList serials = LogCfg::getDevices(systemName);
+    // 只拉当前已连接的配置型号，不对 json 里全部型号逐个尝试
+    const QStringList serials = AdbDeviceQuery().getDevices(systemName);
     if (serials.isEmpty()) {
-        emitLog(QString("[WARN] %1 未配置型号").arg(systemName));
-        setStatus("未配置型号");
+        emitLog(QString("[WARN] %1 当前无已连接型号，无法拉取").arg(systemName));
+        setStatus("无已连接型号");
         m_extracting = false;
         emit extractingChanged();
-        emit extractFinished(false, "未配置型号");
+        emit extractFinished(false, "无已连接型号");
         return;
     }
 
+    emitLog(QString("[OK] %1 将拉取已连接型号: %2").arg(systemName, serials.join(", ")));
     setStatus(QString("提取 %1…").arg(systemName));
     for (const QString &serial : serials) {
         if (m_abort.load())

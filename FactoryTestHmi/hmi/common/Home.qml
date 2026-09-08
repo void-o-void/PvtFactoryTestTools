@@ -53,11 +53,11 @@ Window {
 
         onViewChanged: function(name) {
             if (name === "老化测试")
-                viewLoader.sourceComponent = agingComp
+                viewLoader.sourceComponent = logExtractComp//原来是agingComp
             else if (name === "日志提取")
                 viewLoader.sourceComponent = logExtractComp
             else
-                viewLoader.sourceComponent = factoryComp
+                viewLoader.sourceComponent = logExtractComp//原来是factoryComp  因为要只展示日志提取界面 所以改了
         }
     }
 
@@ -70,7 +70,7 @@ Window {
         anchors.leftMargin: 16
         width: parent.width - 32
         height: parent.height - head.height - 48
-        sourceComponent: factoryComp
+        sourceComponent: logExtractComp//原来是factoryComp
     }
 
     // 功能测试界面

@@ -689,59 +689,74 @@ Rectangle {
                             color: root.systemOnlineOf(modelData.title) ? "#14532d" : "#7f1d1d"
                         }
 
-                        Column {
-                            anchors.fill: parent; anchors.margins: 14; spacing: 8
-                            Row {
+                        Item {
+                            anchors.fill: parent
+
+                            Column {
+                                anchors {
+                                    top: parent.top; left: parent.left; right: parent.right
+                                    topMargin: 14; leftMargin: 14; rightMargin: 14
+                                }
                                 spacing: 8
-                                Rectangle {
-                                    width: 10; height: 10; radius: 5
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    color: root.systemOnlineOf(modelData.title) ? "#34d399" : "#f87171"
+                                Row {
+                                    spacing: 8
+                                    Rectangle {
+                                        width: 10; height: 10; radius: 5
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        color: root.systemOnlineOf(modelData.title) ? "#34d399" : "#f87171"
+                                    }
+                                    Text {
+                                        text: modelData.title
+                                        font.pixelSize: 16; font.weight: Font.Bold; color: "#e2e8f0"
+                                    }
+                                    Text {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: root.systemOnlineOf(modelData.title) ? "已连接·可拉取" : "未连接·不可拉取"
+                                        font.pixelSize: 12
+                                        color: root.systemOnlineOf(modelData.title) ? "#34d399" : "#f87171"
+                                    }
                                 }
                                 Text {
-                                    text: modelData.title
-                                    font.pixelSize: 16; font.weight: Font.Bold; color: "#e2e8f0"
+                                    width: parent.width
+                                    wrapMode: Text.Wrap
+                                    text: modelData.tip
+                                    font.pixelSize: 12; color: "#94a3b8"
                                 }
                                 Text {
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    text: root.systemOnlineOf(modelData.title) ? "已连接·可拉取" : "未连接·不可拉取"
-                                    font.pixelSize: 12
-                                    color: root.systemOnlineOf(modelData.title) ? "#34d399" : "#f87171"
+                                    width: parent.width
+                                    wrapMode: Text.Wrap
+                                    elide: Text.ElideMiddle
+                                    text: "保存到: " + root.systemPathOf(modelData.title)
+                                    font.pixelSize: 11; color: "#64748b"
+                                }
+                                Text {
+                                    width: parent.width
+                                    text: "目录名: " + modelData.tag + " / " + modelData.tag + "(1)…"
+                                    font.pixelSize: 11; color: "#475569"
                                 }
                             }
-                            Text {
-                                width: parent.width
-                                wrapMode: Text.Wrap
-                                text: modelData.tip
-                                font.pixelSize: 12; color: "#94a3b8"
-                            }
-                            Text {
-                                width: parent.width
-                                wrapMode: Text.Wrap
-                                elide: Text.ElideMiddle
-                                text: "保存到: " + root.systemPathOf(modelData.title)
-                                font.pixelSize: 11; color: "#64748b"
-                            }
-                            Text {
-                                width: parent.width
-                                text: "目录名: " + modelData.tag + " / " + modelData.tag + "(1)…"
-                                font.pixelSize: 11; color: "#475569"
-                            }
+
                             Row {
+                                anchors {
+                                    left: parent.left; right: parent.right; bottom: parent.bottom
+                                    leftMargin: 14; rightMargin: 14; bottomMargin: 15
+                                }
                                 spacing: 8
-                                width: parent.width
+                                // 未连接：本系统两个按钮都不可按；三系统互不影响
+                                readonly property bool sysDisabled:
+                                    root.phase === "extracting" || !root.systemOnlineOf(modelData.title)
                                 MiniActionBtn {
                                     width: (parent.width - 8) / 2
                                     label: "提取日志"
                                     iconSource: root.iconExtract
-                                    busy: root.phase === "extracting"
+                                    busy: parent.sysDisabled
                                     onClicked: root.extractOne(modelData.title)
                                 }
                                 MiniActionBtn {
                                     width: (parent.width - 8) / 2
                                     label: "路径保存"
                                     iconSource: root.iconFolder
-                                    busy: root.phase === "extracting"
+                                    busy: parent.sysDisabled
                                     onClicked: root.pickPathFor(modelData.title)
                                 }
                             }
@@ -791,7 +806,7 @@ Rectangle {
                         border { color: "#f87171"; width: 1 }
                         Text {
                             anchors.centerIn: parent
-                            text: "无设备连接 — 请检查 USB / ADB 后再点击「提取所有日志」"
+                            text: "无设备连接 — 请检查 USB / ADB 后再进行提取日志"
                             font.pixelSize: 14; font.weight: Font.Medium; color: "#fecaca"
                         }
                     }

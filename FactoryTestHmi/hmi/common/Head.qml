@@ -10,7 +10,7 @@ Rectangle {
     clip: true
 
     // 当前视图名称，供 Home 切换
-    property string currentView: "功能测试"
+    property string currentView: "日志提取" //原来是功能测试这里 因为要先改成仅日志提取的
     signal viewChanged(string viewName)
 
     gradient: Gradient {
@@ -144,75 +144,75 @@ Rectangle {
                 contentItem: Column {
                     spacing: 2
 
-                    Rectangle {
-                        width: parent.width; height: 42; radius: 6
-                        color: topHeader.currentView === "功能测试" ? "#1e3a5f" :
-                               (featureMouse.containsMouse ? "#1e293b" : "transparent")
-                        Behavior on color { ColorAnimation { duration: 120 } }
+                    // Rectangle {
+                    //     width: parent.width; height: 42; radius: 6
+                    //     color: topHeader.currentView === "功能测试" ? "#1e3a5f" :
+                    //            (featureMouse.containsMouse ? "#1e293b" : "transparent")
+                    //     Behavior on color { ColorAnimation { duration: 120 } }
 
-                        Row {
-                            anchors.centerIn: parent; spacing: 10
-                            Rectangle {
-                                width: 6; height: 6; radius: 3
-                                color: topHeader.currentView === "功能测试" ? "#60a5fa" : "#475569"
-                                anchors.verticalCenter: parent.verticalCenter
-                            }
-                            Text {
-                                text: "功能测试"
-                                font.pixelSize: 14
-                                color: topHeader.currentView === "功能测试" ? "#60a5fa" : "#94a3b8"
-                                anchors.verticalCenter: parent.verticalCenter
-                            }
-                        }
+                    //     Row {
+                    //         anchors.centerIn: parent; spacing: 10
+                    //         Rectangle {
+                    //             width: 6; height: 6; radius: 3
+                    //             color: topHeader.currentView === "功能测试" ? "#60a5fa" : "#475569"
+                    //             anchors.verticalCenter: parent.verticalCenter
+                    //         }
+                    //         Text {
+                    //             text: "功能测试"
+                    //             font.pixelSize: 14
+                    //             color: topHeader.currentView === "功能测试" ? "#60a5fa" : "#94a3b8"
+                    //             anchors.verticalCenter: parent.verticalCenter
+                    //         }
+                    //     }
 
-                        MouseArea {
-                            id: featureMouse
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                topHeader.currentView = "功能测试"
-                                topHeader.viewChanged("功能测试")
-                                testManage.switchToFunctional()
-                                navPopup.close()
-                            }
-                        }
-                    }
+                    //     MouseArea {
+                    //         id: featureMouse
+                    //         anchors.fill: parent
+                    //         hoverEnabled: true
+                    //         cursorShape: Qt.PointingHandCursor
+                    //         onClicked: {
+                    //             topHeader.currentView = "功能测试"
+                    //             topHeader.viewChanged("功能测试")
+                    //             testManage.switchToFunctional()
+                    //             navPopup.close()
+                    //         }
+                    //     }
+                    // }
 
-                    Rectangle {
-                        width: parent.width; height: 42; radius: 6
-                        color: topHeader.currentView === "老化测试" ? "#1e3a5f" :
-                               (agingMouse.containsMouse ? "#1e293b" : "transparent")
-                        Behavior on color { ColorAnimation { duration: 120 } }
+                    // Rectangle {
+                    //     width: parent.width; height: 42; radius: 6
+                    //     color: topHeader.currentView === "老化测试" ? "#1e3a5f" :
+                    //            (agingMouse.containsMouse ? "#1e293b" : "transparent")
+                    //     Behavior on color { ColorAnimation { duration: 120 } }
 
-                        Row {
-                            anchors.centerIn: parent; spacing: 10
-                            Rectangle {
-                                width: 6; height: 6; radius: 3
-                                color: topHeader.currentView === "老化测试" ? "#f59e0b" : "#475569"
-                                anchors.verticalCenter: parent.verticalCenter
-                            }
-                            Text {
-                                text: "老化测试"
-                                font.pixelSize: 14
-                                color: topHeader.currentView === "老化测试" ? "#f59e0b" : "#94a3b8"
-                                anchors.verticalCenter: parent.verticalCenter
-                            }
-                        }
+                    //     Row {
+                    //         anchors.centerIn: parent; spacing: 10
+                    //         Rectangle {
+                    //             width: 6; height: 6; radius: 3
+                    //             color: topHeader.currentView === "老化测试" ? "#f59e0b" : "#475569"
+                    //             anchors.verticalCenter: parent.verticalCenter
+                    //         }
+                    //         Text {
+                    //             text: "老化测试"
+                    //             font.pixelSize: 14
+                    //             color: topHeader.currentView === "老化测试" ? "#f59e0b" : "#94a3b8"
+                    //             anchors.verticalCenter: parent.verticalCenter
+                    //         }
+                    //     }
 
-                        MouseArea {
-                            id: agingMouse
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                topHeader.currentView = "老化测试"
-                                topHeader.viewChanged("老化测试")
-                                testManage.switchToAging()
-                                navPopup.close()
-                            }
-                        }
-                    }
+                    //     MouseArea {
+                    //         id: agingMouse
+                    //         anchors.fill: parent
+                    //         hoverEnabled: true
+                    //         cursorShape: Qt.PointingHandCursor
+                    //         onClicked: {
+                    //             topHeader.currentView = "老化测试"
+                    //             topHeader.viewChanged("老化测试")
+                    //             testManage.switchToAging()
+                    //             navPopup.close()
+                    //         }
+                    //     }
+                    // }
 
                     Rectangle {
                         width: parent.width; height: 42; radius: 6
