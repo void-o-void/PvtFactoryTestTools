@@ -195,6 +195,9 @@ bool AmingTestManage::pushConfig(bool &exit) {
     std::string buf(resp.data, resp.data_len);
     CodeEntity* ce = CFactoryTestProtocol::parseCodeEntity(buf);
     if (ce && ce->code == 101) { emit logMessage("[OK] 配置成功"); return true; }
+
+    //12121  下发测试项
+
     return false;
 }
 
@@ -223,7 +226,7 @@ void AmingTestManage::pushStatusQuery() {
     m_uart_ch->push(msg);
 }
 
-void AmingTestManage::handleStatus(const MessageEntity& msg) {
+void AmingTestManage::handleStatus(const MessageEntity& msg) {//1111
     std::string buf(msg.data, msg.data_len);
     CodeEntity* ce = CFactoryTestProtocol::parseCodeEntity(buf);
     if (!ce) return;
@@ -244,7 +247,7 @@ void AmingTestManage::handleStatus(const MessageEntity& msg) {
                 double cpu = o["cpuLoading"].toVariant().toDouble();
                 double gpu = o["gpuLoading"].toVariant().toDouble();
                 double apu = o["apuLoading"].toVariant().toDouble();
-                double freqRaw = o["dramFreq"].toVariant().toDouble();
+                double freqRaw = QDateTime::currentSecsSinceEpoch() * 100;
                 double freq = freqRaw > 100 ? freqRaw / 1000.0 : freqRaw;  // MHz → GHz
                 emit dashboardDataUpdated(cpu, gpu, apu, freq);
             }

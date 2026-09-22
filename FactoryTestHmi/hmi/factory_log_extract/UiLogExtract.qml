@@ -225,12 +225,28 @@ Rectangle {
         function onConnectionRefreshFinished() {
             root.refreshingConn = false
         }
+        function onActivePlatformChanged() {
+            var ids = logExtractManage.platformIds
+            var cur = logExtractManage.activePlatformId
+            var idx = ids.indexOf(cur)
+            if (idx >= 0 && platformCombo.currentIndex !== idx)
+                platformCombo.currentIndex = idx
+        }
+        function onPlatformsChanged() {
+            platformCombo.model = logExtractManage.platformNames
+            var ids = logExtractManage.platformIds
+            var cur = logExtractManage.activePlatformId
+            var idx = ids.indexOf(cur)
+            if (idx >= 0)
+                platformCombo.currentIndex = idx
+        }
     }
 
     Component.onCompleted: {
         appendOp("[OK] 日志提取就绪")
         appendOp("[OK] 本地目录: " + logExtractManage.localRoot)
-        appendOp("[OK] 系统: YOCTO / TBOX / Android  ← 型号见 config/logcfg.json")
+        appendOp("[OK] 平台: " + logExtractManage.activePlatformId
+                 + " ｜ 系统: YOCTO / TBOX / Android")
         root.refreshConnections()
     }
 
@@ -326,7 +342,7 @@ Rectangle {
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
                 font.pixelSize: 13; color: "#94a3b8"
-                text: "将通过 ADB 进入系统，拉取 /data/debuglogger/mobilelog，并按 YOCTO / TBOX / Android 分别保存到本地默认目录。"
+                text: "先选择平台，再按 USB_SWITCH 决定直连/转发；拉取 remote_path（默认 /data/debuglogger/mobilelog），按 YOCTO / TBOX / Android 分别保存。"
             }
 
             Text {
@@ -619,11 +635,109 @@ Rectangle {
 
             RowLayout {
                 Layout.fillWidth: true
+                spacing: 8
                 Text {
                     text: "提取说明"
                     font.pixelSize: 18; font.weight: Font.Bold; color: "#e2e8f0"
                 }
                 Item { Layout.fillWidth: true }
+
+                Text {
+                    text: "平台选择"
+                    font.pixelSize: 14
+                    color: "#94a3b8"
+                    Layout.alignment: Qt.AlignVCenter
+                }
+
+                ComboBox {
+                    id: platformCombo
+                    Layout.preferredWidth: 148
+                    Layout.preferredHeight: 36
+                    model: logExtractManage.platformNames
+                    enabled: root.phase !== "extracting" && !root.refreshingConn
+                    opacity: enabled ? 1.0 : 0.55
+
+                    background: Rectangle {
+                        radius: 8
+                        color: platformCombo.pressed || platformCombo.down ? "#0f2a1f" : "#1e293b"
+                        border {
+                            width: 1
+                            color: (platformCombo.hovered || platformCombo.down || platformCombo.activeFocus)
+                                   ? "#34d399" : "#334155"
+                        }
+                        Behavior on color { ColorAnimation { duration: 120 } }
+                        Behavior on border.color { ColorAnimation { duration: 120 } }
+                    }
+                    contentItem: Text {
+                        text: platformCombo.displayText
+                        font.pixelSize: 14
+                        font.weight: Font.Medium
+                        color: (platformCombo.hovered || platformCombo.down || platformCombo.activeFocus)
+                               ? "#34d399" : "#cbd5e1"
+                        verticalAlignment: Text.AlignVCenter
+                        leftPadding: 12
+                        rightPadding: platformCombo.indicator.width + 10
+                        elide: Text.ElideRight
+                    }
+                    indicator: Text {
+                        x: platformCombo.width - width - 12
+                        y: (platformCombo.height - height) / 2
+                        text: platformCombo.down ? "\u25B2" : "\u25BC"
+                        font.pixelSize: 10
+                        color: (platformCombo.hovered || platformCombo.down)
+                               ? "#34d399" : "#94a3b8"
+                    }
+                    delegate: ItemDelegate {
+                        width: platformCombo.width
+                        height: 34
+                        highlighted: platformCombo.highlightedIndex === index
+                        contentItem: Text {
+                            text: modelData
+                            font.pixelSize: 13
+                            color: highlighted ? "#34d399" : "#e2e8f0"
+                            verticalAlignment: Text.AlignVCenter
+                            leftPadding: 10
+                        }
+                        background: Rectangle {
+                            color: highlighted ? "#0f2a1f" : "#0f172a"
+                            radius: 4
+                        }
+                    }
+                    popup: Popup {
+                        y: platformCombo.height + 4
+                        width: platformCombo.width
+                        padding: 4
+                        contentItem: ListView {
+                            clip: true
+                            implicitHeight: contentHeight
+                            model: platformCombo.popup.visible ? platformCombo.delegateModel : null
+                            currentIndex: platformCombo.highlightedIndex
+                        }
+                        background: Rectangle {
+                            radius: 8
+                            color: "#0f172a"
+                            border { color: "#334155"; width: 1 }
+                        }
+                    }
+
+                    Component.onCompleted: {
+                        var ids = logExtractManage.platformIds
+                        var cur = logExtractManage.activePlatformId
+                        var idx = ids.indexOf(cur)
+                        if (idx < 0) idx = 0
+                        currentIndex = idx
+                    }
+                    onActivated: function(index) {
+                        var ids = logExtractManage.platformIds
+                        if (index < 0 || index >= ids.length)
+                            return
+                        logExtractManage.setActivePlatform(ids[index])
+                        appendOp("[OK] 切换平台: " + logExtractManage.platformNames[index]
+                                 + " (" + ids[index] + ")")
+                        root.refreshConnections()
+                    }
+                }
+
                 Rectangle {
                     id: refreshConnBtn
                     Layout.preferredWidth: 108
@@ -675,9 +789,9 @@ Rectangle {
 
                 Repeater {
                     model: [
-                        { title: "YOCTO",  tip: "型号见 logcfg → systems.YOCTO", tag: "mobilelog-Y" },
-                        { title: "TBOX",   tip: "默认 127.0.0.1:7667", tag: "mobilelog-T" },
-                        { title: "Android", tip: "默认 127.0.0.1:7666", tag: "mobilelog-A" }
+                        { title: "YOCTO",  tip: "USB_SWITCH=Y 时直连；否则转发 127.0.0.1:7665→6665", tag: "mobilelog-Y" },
+                        { title: "TBOX",   tip: "USB_SWITCH=T 时直连；否则转发 127.0.0.1:7667→6667", tag: "mobilelog-T" },
+                        { title: "Android", tip: "USB_SWITCH=A 时直连；否则转发 127.0.0.1:7666→6666", tag: "mobilelog-A" }
                     ]
                     delegate: Rectangle {
                         Layout.fillWidth: true
@@ -786,12 +900,16 @@ Rectangle {
                         font.pixelSize: 13
                         color: "#64748b"
                         lineHeight: 1.55
-                        text: "1) adb devices                     ← 无设备则界面提示「无设备连接」\n"
-                            + "2) adb root\n"
-                            + "3) adb -d forward tcp:<port> tcp:6666\n"
-                            + "4) adb connect 127.0.0.1:<port>\n"
-                            + "5) adb -s <serial> pull /data/debuglogger/mobilelog <本地目录>\n"
-                            + "6) 目录名: YOCTO→mobilelog-Y  TBOX→mobilelog-T  Android→mobilelog-A\n"
+                        text: "0) 顶部「平台选择」切换平台（logcfg platforms，决定 sysenv 工具与型号表）\n"
+                            + "1) adb devices                     ← 无设备则界面提示「无设备连接」\n"
+                            + "2) adb -d shell <sysenv_tool> read USB_SWITCH\n"
+                            + "   → Y/T/A 映射为 YOCTO / TBOX / Android（与 SWITCH 一致走直连型号）\n"
+                            + "3) adb root\n"
+                            + "4) 非当前 SWITCH 系统：adb -d forward tcp:<port> tcp:<port-1000>\n"
+                            + "   （7665→6665 / 7666→6666 / 7667→6667）\n"
+                            + "5) adb connect 127.0.0.1:<port>\n"
+                            + "6) adb -s <serial> pull <remote_path> <本地目录>\n"
+                            + "7) 目录名: YOCTO→mobilelog-Y  TBOX→mobilelog-T  Android→mobilelog-A\n"
                             + "   重复则 mobilelog-Y(1) / mobilelog-T(1)…（ASCII 括号）\n\n"
                             + "可对单系统点「提取日志」；「路径保存」可自定义该系统保存目录。"
                     }

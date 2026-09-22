@@ -73,10 +73,28 @@ bool LogExtractManage::loadConfig()
 
     m_localRoot = LogCfg::localRoot();
     emit localRootChanged();
+    emit platformsChanged();
+    emit activePlatformChanged();
 
     for (const QString &sys : LogCfg::systemNames())
         QDir().mkpath(m_localRoot + "/" + sys);
     return true;
+}
+
+void LogExtractManage::setActivePlatform(const QString &id)
+{
+    if (!LogCfg::setActivePlatform(id)) {
+        emitLog(QStringLiteral("[WARN] 未知平台 id: %1").arg(id));
+        return;
+    }
+    m_usbSwitchRaw.clear();
+    m_usbSwitchSystem.clear();
+    m_localRoot = LogCfg::localRoot();
+    for (const QString &sys : LogCfg::systemNames())
+        QDir().mkpath(m_localRoot + "/" + sys);
+    emit localRootChanged();
+    emit activePlatformChanged();
+    emitLog(QStringLiteral("[OK] 已切换平台: %1").arg(LogCfg::activePlatformId()));
 }
 
 QString LogExtractManage::runAdb(const QStringList &args, int timeoutMs, int *exitCode)
@@ -148,16 +166,89 @@ QString LogExtractManage::runAdb(const QStringList &args, int timeoutMs, int *ex
 
 bool LogExtractManage::isIpPortSerial(const QString &serial, QString *host, int *port) const
 {
-    const int idx = serial.lastIndexOf(':');
-    if (idx <= 0)
+    return LogCfg::isIpPortSerial(serial, host, port);
+}
+
+QString LogExtractManage::readUsbSwitchRaw()
+{
+    int code = 0;
+    const QString tool = LogCfg::sysenvTool();
+    const QString out = runAdb({
+        "-d", "shell", tool, "read", "USB_SWITCH"
+    }, 15000, &code);
+    if (m_abort.load())
+        return {};
+
+    emitLog(QStringLiteral("[OK] adb -d shell %1 read USB_SWITCH").arg(tool));
+
+    // 输出可能多行，取最后一个非空 token
+    QString raw = out.trimmed();
+    const QStringList lines = raw.split(QRegularExpression(QStringLiteral("[\r\n]+")), Qt::SkipEmptyParts);
+    if (!lines.isEmpty())
+        raw = lines.last().trimmed();
+    // 有的实现输出 "USB_SWITCH=T" 或仅 "T"
+    const int eq = raw.lastIndexOf('=');
+    if (eq >= 0)
+        raw = raw.mid(eq + 1).trimmed();
+    if (!raw.isEmpty())
+        raw = raw.left(1);
+    return raw.toUpper();
+}
+
+QString LogExtractManage::activeSystemFromSwitch(const QString &raw) const
+{
+    if (raw.compare(QStringLiteral("Y"), Qt::CaseInsensitive) == 0)
+        return QStringLiteral("YOCTO");
+    if (raw.compare(QStringLiteral("T"), Qt::CaseInsensitive) == 0)
+        return QStringLiteral("TBOX");
+    if (raw.compare(QStringLiteral("A"), Qt::CaseInsensitive) == 0)
+        return QStringLiteral("Android");
+    return {};
+}
+
+bool LogExtractManage::refreshUsbSwitchCache()
+{
+    m_usbSwitchRaw = readUsbSwitchRaw();
+    m_usbSwitchSystem = activeSystemFromSwitch(m_usbSwitchRaw);
+    if (m_usbSwitchSystem.isEmpty()) {
+        emitLog(QStringLiteral("[WARN] USB_SWITCH 读取失败或未知值: \"%1\"，连接将优先尝试转发型号")
+                    .arg(m_usbSwitchRaw.isEmpty() ? QStringLiteral("(空)") : m_usbSwitchRaw));
         return false;
-    bool ok = false;
-    const int p = serial.mid(idx + 1).toInt(&ok);
-    if (!ok || p <= 0)
-        return false;
-    if (host) *host = serial.left(idx);
-    if (port) *port = p;
+    }
+    emitLog(QStringLiteral("[OK] USB_SWITCH=%1 → 当前默认系统: %2")
+                .arg(m_usbSwitchRaw, m_usbSwitchSystem));
     return true;
+}
+
+QString LogExtractManage::resolveSerialForSystem(const QString &systemName)
+{
+    const QString key = systemName.trimmed();
+    const QStringList directs = LogCfg::directDevices(key);
+    const QStringList forwards = LogCfg::forwardDevices(key);
+
+    const bool useDirect = !m_usbSwitchSystem.isEmpty()
+        && key.compare(m_usbSwitchSystem, Qt::CaseInsensitive) == 0;
+
+    if (useDirect) {
+        if (!directs.isEmpty()) {
+            emitLog(QStringLiteral("[OK] %1 与 USB_SWITCH 一致，使用直连型号: %2")
+                        .arg(key, directs.first()));
+            return directs.first();
+        }
+        emitLog(QStringLiteral("[WARN] %1 应为直连但未配置直连型号，回退转发").arg(key));
+    } else {
+        if (!forwards.isEmpty()) {
+            emitLog(QStringLiteral("[OK] %1 非当前 SWITCH 系统，使用转发型号: %2")
+                        .arg(key, forwards.first()));
+            return forwards.first();
+        }
+        if (!directs.isEmpty()) {
+            emitLog(QStringLiteral("[WARN] %1 未配置转发型号，回退直连: %2")
+                        .arg(key, directs.first()));
+            return directs.first();
+        }
+    }
+    return {};
 }
 
 QString LogExtractManage::uniqueTargetPath(const QString &dir, const QString &baseName) const
@@ -214,40 +305,27 @@ bool LogExtractManage::isSystemOnline(const QString &systemName) const
 
 bool LogExtractManage::probeSystemOnline(const QString &systemName)
 {
-    const QStringList serials = LogCfg::configuredDevices(systemName);
-    if (serials.isEmpty())
+    const QString serial = resolveSerialForSystem(systemName);
+    if (serial.isEmpty()) {
+        emitLog(QStringLiteral("[WARN] %1 未配置可用型号").arg(systemName));
         return false;
+    }
 
     // 已连接：刷新时不动
-    if (!AdbDeviceQuery().getDevices(systemName).isEmpty())
+    if (AdbDeviceQuery().deviceStatus(serial)
+            .compare(QStringLiteral("device"), Qt::CaseInsensitive) == 0)
         return true;
 
-    for (const QString &serial : serials) {
+    const QString status = AdbDeviceQuery().deviceStatus(serial);
+    if (status.compare(QStringLiteral("offline"), Qt::CaseInsensitive) == 0) {
+        disconnectIfOffline(serial);
         if (m_abort.load())
             return false;
-
-        const QString status = AdbDeviceQuery().deviceStatus(serial);
-        // 该型号已是 device：跳过
-        if (status.compare(QStringLiteral("device"), Qt::CaseInsensitive) == 0)
-            return true;
-
-        // 仅 offline：disconnect 后再重连
-        if (status.compare(QStringLiteral("offline"), Qt::CaseInsensitive) == 0) {
-            disconnectIfOffline(serial);
-            if (m_abort.load())
-                return false;
-            if (connectSerial(serial)
-                && !AdbDeviceQuery().getDevices(systemName).isEmpty())
-                return true;
-            continue;
-        }
-
-        // 未出现：正常尝试连接（不 disconnect）
-        if (connectSerial(serial)
-            && !AdbDeviceQuery().getDevices(systemName).isEmpty())
-            return true;
+        return connectSerial(serial);
     }
-    return false;
+
+    // 未出现：正常尝试连接
+    return connectSerial(serial);
 }
 
 void LogExtractManage::refreshConnectionStatus()
@@ -262,14 +340,16 @@ void LogExtractManage::refreshConnectionStatus()
     m_refreshing = true;
     m_abort.store(false);
     setStatus(QStringLiteral("刷新连接中…"));
-    emitLog(QStringLiteral("[OK] 开始刷新 YOCTO / TBOX / Android 连接状态"));
+    emitLog(QStringLiteral("[OK] 开始刷新 YOCTO / TBOX / Android 连接状态（平台 %1）")
+                .arg(LogCfg::activePlatformId()));
 
     m_refreshWorker = std::thread([this]() { refreshConnectionWorker(); });
 }
 
 void LogExtractManage::refreshConnectionWorker()
 {
-    // 刷新不再 kill-server；已连接系统在 probe 里直接跳过
+    refreshUsbSwitchCache();
+
     const bool y = probeSystemOnline(QStringLiteral("YOCTO"));
     const bool t = probeSystemOnline(QStringLiteral("TBOX"));
     const bool a = probeSystemOnline(QStringLiteral("Android"));
@@ -460,6 +540,7 @@ bool LogExtractManage::ensureAdbServerOnce()
 bool LogExtractManage::prepareAdbSession()
 {
     emitLog(QString("[OK] 本地根目录: %1").arg(m_localRoot));
+    emitLog(QStringLiteral("[OK] 当前平台: %1").arg(LogCfg::activePlatformId()));
 
     // kill-server 仅启动时执行过一次，这里不再重复
     const QStringList devices = AdbDeviceQuery().listAdbDevices();
@@ -475,6 +556,10 @@ bool LogExtractManage::prepareAdbSession()
         emitLog("[ERR] 无设备连接，请检查 USB/ADB 后重试");
         return false;
     }
+
+    refreshUsbSwitchCache();
+    if (m_abort.load())
+        return false;
 
     int rootCode = 0;
     const QString rootOut = runAdb({"root"}, 20000, &rootCode);
@@ -539,22 +624,19 @@ void LogExtractManage::extractAllWorker()
     for (const QString &sysName : LogCfg::systemNames()) {
         if (m_abort.load())
             break;
-        // 只拉当前已连接的配置型号（每个系统通常只有一个在线）
-        const QStringList serials = AdbDeviceQuery().getDevices(sysName);
-        if (serials.isEmpty()) {
-            emitLog(QString("[WARN] %1 当前无已连接型号，跳过").arg(sysName));
+
+        const QString serial = resolveSerialForSystem(sysName);
+        if (serial.isEmpty()) {
+            emitLog(QString("[WARN] %1 未配置型号，跳过").arg(sysName));
             ++failCount;
             continue;
         }
+
         setStatus(QString("提取 %1…").arg(sysName));
-        for (const QString &serial : serials) {
-            if (m_abort.load())
-                break;
-            if (pullSystemLogs(sysName, serial, QString()))
-                ++okCount;
-            else
-                ++failCount;
-        }
+        if (pullSystemLogs(sysName, serial, QString()))
+            ++okCount;
+        else
+            ++failCount;
     }
 
     if (m_abort.load()) {
@@ -592,27 +674,22 @@ void LogExtractManage::extractSystemWorker(const QString &systemName, const QStr
         return;
     }
 
-    // 只拉当前已连接的配置型号，不对 json 里全部型号逐个尝试
-    const QStringList serials = AdbDeviceQuery().getDevices(systemName);
-    if (serials.isEmpty()) {
-        emitLog(QString("[WARN] %1 当前无已连接型号，无法拉取").arg(systemName));
-        setStatus("无已连接型号");
+    const QString serial = resolveSerialForSystem(systemName);
+    if (serial.isEmpty()) {
+        emitLog(QString("[WARN] %1 未配置可用型号，无法拉取").arg(systemName));
+        setStatus("未配置型号");
         m_extracting = false;
         emit extractingChanged();
-        emit extractFinished(false, "无已连接型号");
+        emit extractFinished(false, "未配置型号");
         return;
     }
 
-    emitLog(QString("[OK] %1 将拉取已连接型号: %2").arg(systemName, serials.join(", ")));
+    emitLog(QString("[OK] %1 将使用型号: %2").arg(systemName, serial));
     setStatus(QString("提取 %1…").arg(systemName));
-    for (const QString &serial : serials) {
-        if (m_abort.load())
-            break;
-        if (pullSystemLogs(systemName, serial, saveDir))
-            ++okCount;
-        else
-            ++failCount;
-    }
+    if (pullSystemLogs(systemName, serial, saveDir))
+        ++okCount;
+    else
+        ++failCount;
 
     if (m_abort.load()) {
         setStatus("已取消");

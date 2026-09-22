@@ -16,7 +16,8 @@
 
 
 
-#define PROJECT_DIR  "C:\\Users\\panshiquan\\Desktop\\work\\PvtFactoryTestTools\\FactoryTestHmi"
+/*#define PROJECT_DIR  "C:\\Users\\panshiquan\\Desktop\\work\\PvtFactoryTestTools\\FactoryTestHmi"*/
+#define PROJECT_DIR  "E:\\qtproject\\PvtFactoryTestTools\\FactoryTestHmi"
 //#define PROJECT_DIR  "C:\\Users\\void\\Desktop\\work\\PvtFactoryTestTools\\FactoryTestHmi"
 
 struct SSerialConfig {

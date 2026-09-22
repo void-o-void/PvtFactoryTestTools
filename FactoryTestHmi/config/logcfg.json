@@ -1,18 +1,64 @@
 {
     "adb_path": "adb",
-    "remote_path": "/data/debuglogger/mobilelog",
     "local_root": "",
-    "systems": {
-        "YOCTO": [
-            "YOCTO",
-            "127.0.0.1:7665"
-        ],
-        "TBOX": [
-            "127.0.0.1:7667"
-        ],
-        "Android": [
-            "127.0.0.1:7666",
-            "0123456789ABCDEF"
-        ]
-    }
+    "default_platform": "mt8676",
+    "platforms": [
+        {
+            "id": "mt8676",
+            "name": "MT8676",
+            "remote_path": "/data/debuglogger/mobilelog",
+            "sysenv_tool": "sysenv_test",
+            "systems": {
+                "YOCTO": [
+                    "YOCTO",
+                    "127.0.0.1:7665"
+                ],
+                "TBOX": [
+                    "YOCTO",
+                    "127.0.0.1:7667"
+                ],
+                "Android": [
+                    "0123456789ABCDEF",
+                    "127.0.0.1:7666"
+                ]
+            }
+        },
+        {
+            "id": "mt8678",
+            "name": "MT8678",
+            "remote_path": "/data/debuglogger/mobilelog",
+            "sysenv_tool": "sysenv-test",
+            "systems": {
+                "YOCTO": [
+					"127.0.0.1:7665"
+				],
+                "TBOX": [
+					"YOCTO_TBOX",
+					"127.0.0.1:7667"
+				],
+                "Android": [
+					"127.0.0.1:7666"
+				]
+            }
+        },
+		{
+            "id": "mt8668",
+            "name": "MT8668",
+            "remote_path": "/data/debuglogger/mobilelog",
+            "sysenv_tool": "sysenv-test",
+            "systems": {
+                "YOCTO": [
+					"YOCTO",
+					"127.0.0.1:7665"
+				],
+                "TBOX": [
+				
+				],
+                "Android": [
+					"0123456789ABCDEF",
+					"127.0.0.1:7666"
+				]
+            }
+        }
+    ]
 }

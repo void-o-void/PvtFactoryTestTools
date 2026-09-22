@@ -1,113 +1,632 @@
 {
-    "project_name": "P39",
-
+    "connect_serial": {
+        "baud_rate": 921600,
+        "com": "COM6",
+        "parity_bits": 1,
+        "stop_bits": 1
+    },
+    "debug_serial": {
+        "baud_rate": 9600,
+        "com": "COM1",
+        "parity_bits": 1,
+        "stop_bits": 1
+    },
+    "env_items": [
+        {
+            "descr": "系统版本",
+            "en_enum": false,
+            "name": "systemVersion",
+            "sn": 0,
+            "type": "string",
+            "value": "P39_FACTORY_4G_HW1.0_202511201718_D"
+        },
+        {
+            "descr": "测试超时时间",
+            "en_enum": false,
+            "name": "testTimeOut",
+            "sn": 1,
+            "type": "int",
+            "value": 60
+        },
+        {
+            "descr": "GPS卫星数量",
+            "en_enum": false,
+            "name": "satelliteCount",
+            "sn": 2,
+            "type": "int",
+            "value": 6
+        },
+        {
+            "descr": "GPS信号阈值",
+            "en_enum": false,
+            "name": "cnDbHz",
+            "sn": 3,
+            "type": "int",
+            "value": 100
+        },
+        {
+            "descr": "卡1-4G信号强度",
+            "en_enum": false,
+            "name": "signalStrength",
+            "sn": 4,
+            "type": "int",
+            "value": -200
+        },
+        {
+            "descr": "卡2-4G信号强度",
+            "en_enum": false,
+            "name": "signalStrength2",
+            "sn": 5,
+            "type": "int",
+            "value": -200
+        },
+        {
+            "descr": "休眠电流阈值",
+            "en_enum": false,
+            "name": "sleepCurrentThreshold",
+            "sn": 6,
+            "type": "int",
+            "value": 13
+        },
+        {
+            "descr": "峰值电流阈值",
+            "en_enum": false,
+            "name": "peakCurrentThreshold",
+            "sn": 7,
+            "type": "int",
+            "value": 4000
+        },
+        {
+            "descr": "电压阈值",
+            "en_enum": false,
+            "name": "voltageThreshold",
+            "sn": 8,
+            "type": "int",
+            "value": 5
+        },
+        {
+            "descr": "休眠超时时间",
+            "en_enum": false,
+            "name": "sleepCurrentTimeout",
+            "sn": 9,
+            "type": "int",
+            "value": 120
+        },
+        {
+            "descr": "连接电脑IP",
+            "en_enum": false,
+            "name": "PCIETestIp",
+            "sn": 10,
+            "type": "int",
+            "value": 20
+        },
+        {
+            "descr": "自动复测次数",
+            "en_enum": false,
+            "name": "retestCount",
+            "sn": 11,
+            "type": "int",
+            "value": 2
+        },
+        {
+            "descr": "WIFI名称",
+            "en_enum": false,
+            "name": "wifiName",
+            "sn": 12,
+            "type": "string",
+            "value": "123456"
+        },
+        {
+            "descr": "WIFI强度阈值",
+            "en_enum": false,
+            "name": "wifiLevel",
+            "sn": 13,
+            "type": "int",
+            "value": -60
+        },
+        {
+            "descr": "蓝牙名称",
+            "en_enum": false,
+            "name": "btName",
+            "sn": 14,
+            "type": "string",
+            "value": "hcsbt3"
+        },
+        {
+            "descr": "蓝牙Rssi阈值",
+            "en_enum": false,
+            "name": "btRssi",
+            "sn": 15,
+            "type": "int",
+            "value": -110
+        },
+        {
+            "descr": "Sn",
+            "en_enum": false,
+            "name": "sn",
+            "sn": 16,
+            "type": "string",
+            "value": "34ACF88ACS67B10115"
+        },
+        {
+            "descr": "imei1",
+            "en_enum": false,
+            "name": "imei1",
+            "sn": 17,
+            "type": "string",
+            "value": "862197080033641"
+        },
+        {
+            "descr": "imei2",
+            "en_enum": false,
+            "name": "imei2",
+            "sn": 18,
+            "type": "string",
+            "value": "862197080038640"
+        },
+        {
+            "descr": "macAddressWifi",
+            "en_enum": false,
+            "name": "macAddressWifi",
+            "sn": 19,
+            "type": "string",
+            "value": "50C3A2070C50"
+        },
+        {
+            "descr": "macAddressBt",
+            "en_enum": false,
+            "name": "macAddressBt",
+            "sn": 20,
+            "type": "string",
+            "value": "50C3A2070C51"
+        }
+    ],
     "factory": {
         "factory_name": "PVT1",
+        "mes_enable": false,
         "mes_ip": "192.168.1.100",
-        "mes_port": 8080,
-        "mes_enable" : false
+        "mes_port": 8080
     },
-
-    "station":{
-        "user_no": "Q2503231",
-        "order_no": "20001520",
+    "project_name": "P39",
+    "station": {
+        "fixture_no": "51516",
         "line_name": "FT-0718",
+        "order_no": "20001520",
         "station_name": "SMT-FT",
-        "fixture_no": "51516"
+        "user_no": "Q2503231"
     },
-
-    "connect_serial": {
-        "com":"COM6",
-        "baud_rate": 921600,
-        "stop_bits":  1,
-        "parity_bits": 1
-    },
-
-    "debug_serial": {
-        "com":"COM1",  
-        "baud_rate": 9600,
-        "stop_bits":  1,
-        "parity_bits": 1
-    },
-
-    "env_items":[
-        {   "name":"systemVersion", "descr":"系统版本", "value":"P39_FACTORY_4G_HW1.0_202511201718_D", "type": "string", "sn": 0, "en_enum": false },
-        {   "name":"testTimeOut", "descr":"测试超时时间", "value":60, "type": "int", "en_enum": false, "sn": 1    },
-        {   "name":"satelliteCount", "descr":"GPS卫星数量", "value":6, "type": "int", "en_enum": false, "sn": 2    },
-        {   "name":"cnDbHz", "descr":"GPS信号阈值", "value":100, "type": "int", "en_enum": false, "sn": 3    },
-        {   "name":"signalStrength", "descr":"卡1-4G信号强度", "value":-200, "type": "int", "en_enum": false, "sn": 4    },
-        {   "name":"signalStrength2", "descr":"卡2-4G信号强度", "value":-200, "type": "int", "en_enum": false, "sn": 5    },
-        {   "name":"sleepCurrentThreshold", "descr":"休眠电流阈值", "value":13, "type": "int", "en_enum": false, "sn": 6    },
-        {   "name":"peakCurrentThreshold", "descr":"峰值电流阈值", "value":4000, "type": "int", "en_enum": false, "sn": 7    },
-        {   "name":"voltageThreshold", "descr":"电压阈值", "value":5, "type": "int", "en_enum": false, "sn": 8    },
-        {   "name":"sleepCurrentTimeout", "descr":"休眠超时时间", "value":120, "type": "int", "en_enum": false, "sn": 9    },
-        {   "name":"PCIETestIp", "descr":"连接电脑IP", "value":20, "type": "int", "en_enum": false, "sn": 10    },
-        {   "name":"retestCount", "descr":"自动复测次数", "value":2, "type": "int", "en_enum": false, "sn": 11    },
-        {   "name":"wifiName", "descr":"WIFI名称", "value":"123456", "type": "string", "en_enum": false, "sn": 12    },
-        {   "name":"wifiLevel", "descr":"WIFI强度阈值", "value":-60, "type": "int", "en_enum": false, "sn": 13    },
-        {   "name":"btName", "descr":"蓝牙名称", "value":"hcsbt3", "type": "string", "en_enum": false, "sn": 14    },
-        {   "name":"btRssi", "descr":"蓝牙Rssi阈值", "value":-110, "type": "int", "en_enum": false, "sn": 15    },
-        {   "name":"sn", "descr":"Sn", "value":"34ACF88ACS67B10115", "type": "string", "en_enum": false, "sn": 16    },
-        {   "name":"imei1", "descr":"imei1", "value":"862197080033641", "type": "string", "en_enum": false, "sn": 17    },
-        {   "name":"imei2", "descr":"imei2", "value":"862197080038640", "type": "string", "en_enum": false, "sn": 18    },
-        {   "name":"macAddressWifi", "descr":"macAddressWifi", "value":"50C3A2070C50", "type": "string", "en_enum": false, "sn": 19    },
-        {   "name":"macAddressBt", "descr":"macAddressBt", "value":"50C3A2070C51", "type": "string", "en_enum": false, "sn": 20    }
-    ],
-
     "test_items": [
-        { "code": 200, "sn": 0, "value": true, "descr": "开机", "timeout": 120, "retries": 0 },
-        { "code": 201, "sn": 1, "value": false, "descr": "休眠", "timeout": 120, "retries": 0 },
-        { "code": 502, "sn": 2, "value": false, "descr": "峰值电流", "timeout": 120, "retries": 0 },
-        { "code": 224, "sn": 3, "value": false, "descr": "系统版本", "timeout": 120, "retries": 0 },
-        { "code": 205, "sn": 4, "value": false, "descr": "TF卡", "timeout": 120, "retries": 0 },
-        { "code": 206, "sn": 5, "value": false, "descr": "SIM卡", "timeout": 120, "retries": 0 },
-        { "code": 207, "sn": 6, "value": false, "descr": "SIM卡-2", "timeout": 120, "retries": 0 },
-        { "code": 209, "sn": 7, "value": false, "descr": "移动网络信号", "timeout": 120, "retries": 0 },
-        { "code": 210, "sn": 8, "value": false, "descr": "SIM-2移动网络信号", "timeout": 120, "retries": 0 },
-        { "code": 211, "sn": 9, "value": false, "descr": "GPS", "timeout": 120, "retries": 0 },
-        { "code": 212, "sn": 10, "value": false, "descr": "WIFI", "timeout": 120, "retries": 0 },
-        { "code": 213, "sn": 11, "value": false, "descr": "蓝牙", "timeout": 120, "retries": 0 },
-        { "code": 217, "sn": 12, "value": false, "descr": "USB3.0", "timeout": 120, "retries": 0 },
-        { "code": 440, "sn": 13, "value": true, "descr": "I2C_0", "timeout": 120, "retries": 0 },
-        { "code": 233, "sn": 14, "value": true, "descr": "I2C_3", "timeout": 120, "retries": 0 },
-        { "code": 441, "sn": 15, "value": true, "descr": "I2C_4", "timeout": 120, "retries": 0 },
-        { "code": 234, "sn": 16, "value": false, "descr": "I2C_5", "timeout": 120, "retries": 0 },
-        { "code": 235, "sn": 17, "value": true, "descr": "I2C_6", "timeout": 120, "retries": 0 },
-        { "code": 442, "sn": 18, "value": true, "descr": "I2C_7", "timeout": 120, "retries": 0 },
-        { "code": 443, "sn": 19, "value": true, "descr": "I2C_8", "timeout": 120, "retries": 0 },
-        { "code": 444, "sn": 20, "value": true, "descr": "I2C_9", "timeout": 120, "retries": 0 },
-        { "code": 445, "sn": 21, "value": true, "descr": "I2C_10", "timeout": 120, "retries": 0 },
-        { "code": 446, "sn": 22, "value": true, "descr": "I2C_11", "timeout": 120, "retries": 0 },
-        { "code": 236, "sn": 23, "value": true, "descr": "I2C_12", "timeout": 120, "retries": 0 },
-        { "code": 447, "sn": 24, "value": true, "descr": "I2C_13", "timeout": 120, "retries": 0 },
-        { "code": 257, "sn": 25, "value": false, "descr": "I2C14_AUD", "timeout": 120, "retries": 0 },
-        { "code": 237, "sn": 26, "value": true, "descr": "SPI0.0", "timeout": 120, "retries": 0 },
-        { "code": 238, "sn": 27, "value": true, "descr": "SPI1.0", "timeout": 120, "retries": 0 },
-        { "code": 239, "sn": 28, "value": true, "descr": "SPI2.0", "timeout": 120, "retries": 0 },
-        { "code": 240, "sn": 29, "value": true, "descr": "SPI3.0", "timeout": 120, "retries": 0 },
-        { "code": 241, "sn": 30, "value": true, "descr": "SPI4.0", "timeout": 120, "retries": 0 },
-        { "code": 242, "sn": 31, "value": true, "descr": "SPI7.0", "timeout": 120, "retries": 0 },
-        { "code": 12, "sn": 32, "value": true, "descr": "I2S_0_1", "timeout": 120, "retries": 0 },
-        { "code": 13, "sn": 33, "value": true, "descr": "I2S_2_6", "timeout": 120, "retries": 0 },
-        { "code": 15, "sn": 34, "value": true, "descr": "I2S_2_FM", "timeout": 120, "retries": 0 },
-        { "code": 14, "sn": 35, "value": true, "descr": "TDM", "timeout": 120, "retries": 0 },
-        { "code": 6, "sn": 36, "value": true, "descr": "DISP_PWM2", "timeout": 120, "retries": 0 },
-        { "code": 7, "sn": 37, "value": true, "descr": "DISP_PWM3", "timeout": 120, "retries": 0 },
-        { "code": 249, "sn": 38, "value": true, "descr": "UART3", "timeout": 120, "retries": 0 },
-        { "code": 256, "sn": 49, "value": true, "descr": "PCIE", "timeout": 120, "retries": 0 },
-        { "code": 17, "sn": 40, "value": true, "descr": "GND", "timeout": 120, "retries": 0 },
-        { "code": 18, "sn": 41, "value": true, "descr": "GPIO", "timeout": 120, "retries": 0 },
-        { "code": 218, "sn": 42, "value": true, "descr": "CSI0_DSI0", "timeout": 120, "retries": 0 },
-        { "code": 219, "sn": 43, "value": true, "descr": "CSI1_DSI0", "timeout": 120, "retries": 0 },
-        { "code": 227, "sn": 44, "value": true, "descr": "CSI2_DSI1", "timeout": 120, "retries": 0 },
-        { "code": 228, "sn": 45, "value": true, "descr": "CSI3_DSI1", "timeout": 120, "retries": 0 },
-        { "code": 229, "sn": 46, "value": true, "descr": "CSI4_DP", "timeout": 120, "retries": 0 },
-        { "code": 230, "sn": 47, "value": true, "descr": "CSI5_DP", "timeout": 120, "retries": 0 },
-        { "code": 221, "sn": 48, "value": false, "descr": "SN", "timeout": 120, "retries": 0 },
-        { "code": 222, "sn": 49, "value": false, "descr": "IMEI1", "timeout": 120, "retries": 0 },
-        { "code": 223, "sn": 50, "value": false, "descr": "IMEI2", "timeout": 120, "retries": 0 },
-        { "code": 225, "sn": 51, "value": false, "descr": "BT_MAC", "timeout": 120, "retries": 0 },
-        { "code": 226, "sn": 52, "value": false, "descr": "WIFI_MAC", "timeout": 120, "retries": 0 },
-        { "code": 450, "sn": 53, "value": false, "descr": "Modem状态检测", "timeout": 120, "retries": 0 }
+        {
+            "code": 200,
+            "descr": "开机",
+            "retries": 0,
+            "sn": 0,
+            "timeout": 120,
+            "value": true
+        },
+        {
+            "code": 201,
+            "descr": "休眠",
+            "retries": 0,
+            "sn": 1,
+            "timeout": 120,
+            "value": false
+        },
+        {
+            "code": 502,
+            "descr": "峰值电流",
+            "retries": 0,
+            "sn": 2,
+            "timeout": 120,
+            "value": false
+        },
+        {
+            "code": 224,
+            "descr": "系统版本",
+            "retries": 0,
+            "sn": 3,
+            "timeout": 120,
+            "value": false
+        },
+        {
+            "code": 205,
+            "descr": "TF卡",
+            "retries": 0,
+            "sn": 4,
+            "timeout": 120,
+            "value": false
+        },
+        {
+            "code": 206,
+            "descr": "SIM卡",
+            "retries": 0,
+            "sn": 5,
+            "timeout": 120,
+            "value": false
+        },
+        {
+            "code": 207,
+            "descr": "SIM卡-2",
+            "retries": 0,
+            "sn": 6,
+            "timeout": 120,
+            "value": false
+        },
+        {
+            "code": 209,
+            "descr": "移动网络信号",
+            "retries": 0,
+            "sn": 7,
+            "timeout": 120,
+            "value": false
+        },
+        {
+            "code": 210,
+            "descr": "SIM-2移动网络信号",
+            "retries": 0,
+            "sn": 8,
+            "timeout": 120,
+            "value": false
+        },
+        {
+            "code": 211,
+            "descr": "GPS",
+            "retries": 0,
+            "sn": 9,
+            "timeout": 120,
+            "value": false
+        },
+        {
+            "code": 212,
+            "descr": "WIFI",
+            "retries": 0,
+            "sn": 10,
+            "timeout": 120,
+            "value": false
+        },
+        {
+            "code": 213,
+            "descr": "蓝牙",
+            "retries": 0,
+            "sn": 11,
+            "timeout": 120,
+            "value": false
+        },
+        {
+            "code": 217,
+            "descr": "USB3.0",
+            "retries": 0,
+            "sn": 12,
+            "timeout": 120,
+            "value": false
+        },
+        {
+            "code": 440,
+            "descr": "I2C_0",
+            "retries": 0,
+            "sn": 13,
+            "timeout": 120,
+            "value": true
+        },
+        {
+            "code": 233,
+            "descr": "I2C_3",
+            "retries": 0,
+            "sn": 14,
+            "timeout": 120,
+            "value": true
+        },
+        {
+            "code": 441,
+            "descr": "I2C_4",
+            "retries": 0,
+            "sn": 15,
+            "timeout": 120,
+            "value": true
+        },
+        {
+            "code": 234,
+            "descr": "I2C_5",
+            "retries": 0,
+            "sn": 16,
+            "timeout": 120,
+            "value": false
+        },
+        {
+            "code": 235,
+            "descr": "I2C_6",
+            "retries": 0,
+            "sn": 17,
+            "timeout": 120,
+            "value": true
+        },
+        {
+            "code": 442,
+            "descr": "I2C_7",
+            "retries": 0,
+            "sn": 18,
+            "timeout": 120,
+            "value": true
+        },
+        {
+            "code": 443,
+            "descr": "I2C_8",
+            "retries": 0,
+            "sn": 19,
+            "timeout": 120,
+            "value": true
+        },
+        {
+            "code": 444,
+            "descr": "I2C_9",
+            "retries": 0,
+            "sn": 20,
+            "timeout": 120,
+            "value": true
+        },
+        {
+            "code": 445,
+            "descr": "I2C_10",
+            "retries": 0,
+            "sn": 21,
+            "timeout": 120,
+            "value": true
+        },
+        {
+            "code": 446,
+            "descr": "I2C_11",
+            "retries": 0,
+            "sn": 22,
+            "timeout": 120,
+            "value": true
+        },
+        {
+            "code": 236,
+            "descr": "I2C_12",
+            "retries": 0,
+            "sn": 23,
+            "timeout": 120,
+            "value": true
+        },
+        {
+            "code": 447,
+            "descr": "I2C_13",
+            "retries": 0,
+            "sn": 24,
+            "timeout": 120,
+            "value": true
+        },
+        {
+            "code": 257,
+            "descr": "I2C14_AUD",
+            "retries": 0,
+            "sn": 25,
+            "timeout": 120,
+            "value": false
+        },
+        {
+            "code": 237,
+            "descr": "SPI0.0",
+            "retries": 0,
+            "sn": 26,
+            "timeout": 120,
+            "value": true
+        },
+        {
+            "code": 238,
+            "descr": "SPI1.0",
+            "retries": 0,
+            "sn": 27,
+            "timeout": 120,
+            "value": true
+        },
+        {
+            "code": 239,
+            "descr": "SPI2.0",
+            "retries": 0,
+            "sn": 28,
+            "timeout": 120,
+            "value": true
+        },
+        {
+            "code": 240,
+            "descr": "SPI3.0",
+            "retries": 0,
+            "sn": 29,
+            "timeout": 120,
+            "value": true
+        },
+        {
+            "code": 241,
+            "descr": "SPI4.0",
+            "retries": 0,
+            "sn": 30,
+            "timeout": 120,
+            "value": true
+        },
+        {
+            "code": 242,
+            "descr": "SPI7.0",
+            "retries": 0,
+            "sn": 31,
+            "timeout": 120,
+            "value": true
+        },
+        {
+            "code": 12,
+            "descr": "I2S_0_1",
+            "retries": 0,
+            "sn": 32,
+            "timeout": 120,
+            "value": true
+        },
+        {
+            "code": 13,
+            "descr": "I2S_2_6",
+            "retries": 0,
+            "sn": 33,
+            "timeout": 120,
+            "value": true
+        },
+        {
+            "code": 15,
+            "descr": "I2S_2_FM",
+            "retries": 0,
+            "sn": 34,
+            "timeout": 120,
+            "value": true
+        },
+        {
+            "code": 14,
+            "descr": "TDM",
+            "retries": 0,
+            "sn": 35,
+            "timeout": 120,
+            "value": true
+        },
+        {
+            "code": 6,
+            "descr": "DISP_PWM2",
+            "retries": 0,
+            "sn": 36,
+            "timeout": 120,
+            "value": true
+        },
+        {
+            "code": 7,
+            "descr": "DISP_PWM3",
+            "retries": 0,
+            "sn": 37,
+            "timeout": 120,
+            "value": true
+        },
+        {
+            "code": 249,
+            "descr": "UART3",
+            "retries": 0,
+            "sn": 38,
+            "timeout": 120,
+            "value": true
+        },
+        {
+            "code": 256,
+            "descr": "PCIE",
+            "retries": 0,
+            "sn": 49,
+            "timeout": 120,
+            "value": true
+        },
+        {
+            "code": 17,
+            "descr": "GND",
+            "retries": 0,
+            "sn": 40,
+            "timeout": 120,
+            "value": true
+        },
+        {
+            "code": 18,
+            "descr": "GPIO",
+            "retries": 0,
+            "sn": 41,
+            "timeout": 120,
+            "value": true
+        },
+        {
+            "code": 218,
+            "descr": "CSI0_DSI0",
+            "retries": 0,
+            "sn": 42,
+            "timeout": 120,
+            "value": true
+        },
+        {
+            "code": 219,
+            "descr": "CSI1_DSI0",
+            "retries": 0,
+            "sn": 43,
+            "timeout": 120,
+            "value": true
+        },
+        {
+            "code": 227,
+            "descr": "CSI2_DSI1",
+            "retries": 0,
+            "sn": 44,
+            "timeout": 120,
+            "value": true
+        },
+        {
+            "code": 228,
+            "descr": "CSI3_DSI1",
+            "retries": 0,
+            "sn": 45,
+            "timeout": 120,
+            "value": true
+        },
+        {
+            "code": 229,
+            "descr": "CSI4_DP",
+            "retries": 0,
+            "sn": 46,
+            "timeout": 120,
+            "value": true
+        },
+        {
+            "code": 230,
+            "descr": "CSI5_DP",
+            "retries": 0,
+            "sn": 47,
+            "timeout": 120,
+            "value": true
+        },
+        {
+            "code": 221,
+            "descr": "SN",
+            "retries": 0,
+            "sn": 48,
+            "timeout": 120,
+            "value": false
+        },
+        {
+            "code": 222,
+            "descr": "IMEI1",
+            "retries": 0,
+            "sn": 49,
+            "timeout": 120,
+            "value": false
+        },
+        {
+            "code": 223,
+            "descr": "IMEI2",
+            "retries": 0,
+            "sn": 50,
+            "timeout": 120,
+            "value": false
+        },
+        {
+            "code": 225,
+            "descr": "BT_MAC",
+            "retries": 0,
+            "sn": 51,
+            "timeout": 120,
+            "value": false
+        },
+        {
+            "code": 226,
+            "descr": "WIFI_MAC",
+            "retries": 0,
+            "sn": 52,
+            "timeout": 120,
+            "value": false
+        },
+        {
+            "code": 450,
+            "descr": "Modem状态检测",
+            "retries": 0,
+            "sn": 53,
+            "timeout": 120,
+            "value": false
+        }
     ]
 }

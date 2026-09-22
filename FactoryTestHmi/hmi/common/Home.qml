@@ -22,20 +22,7 @@ Window {
 
         MouseArea {
             anchors.fill: parent
-            cursorShape: Qt.ArrowCursor
-            property point lastPos: Qt.point(0, 0)
-
-            onPressed: function(mouse) {
-                lastPos = Qt.point(mouse.x, mouse.y)
-            }
-            onPositionChanged: function(mouse) {
-                if (pressed) {
-                    var delta = Qt.point(mouse.x - lastPos.x, mouse.y - lastPos.y)
-                    root.x += delta.x
-                    root.y += delta.y
-                }
-            }
-        }
+                onPressed: root.startSystemMove()}
     }
 
     Rectangle {
@@ -53,11 +40,11 @@ Window {
 
         onViewChanged: function(name) {
             if (name === "老化测试")
-                viewLoader.sourceComponent = logExtractComp//原来是agingComp
+                viewLoader.sourceComponent = agingComp//原来是agingComp
             else if (name === "日志提取")
                 viewLoader.sourceComponent = logExtractComp
             else
-                viewLoader.sourceComponent = logExtractComp//原来是factoryComp  因为要只展示日志提取界面 所以改了
+                viewLoader.sourceComponent = factoryComp//原来是factoryComp  因为要只展示日志提取界面 所以改了
         }
     }
 
@@ -70,7 +57,7 @@ Window {
         anchors.leftMargin: 16
         width: parent.width - 32
         height: parent.height - head.height - 48
-        sourceComponent: logExtractComp//原来是factoryComp
+        sourceComponent: factoryComp//原来是factoryComp
     }
 
     // 功能测试界面

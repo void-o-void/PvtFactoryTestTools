@@ -20,31 +20,38 @@
 class QProcess;
 
 /**
- * logcfg.json 读取封装，供日志提取 / 后续 adb 相关功能复用。
- * 路径：优先项目根 config/logcfg.json，备用 exe 旁拷贝。
- * （原 common/log_cfg.hpp + log_cfg.cpp 已合并至此）
+ * logcfg.json 多平台读取封装。
+ * 结构：default_platform + platforms[{id,name,remote_path,systems}]
  */
 class LogCfg {
 public:
-    /** 加载配置（已加载则直接返回 true） */
     static bool load(QString *errMsg = nullptr);
-    /** 强制重新从磁盘读取 */
     static bool reload(QString *errMsg = nullptr);
 
     static QString configPath();
 
-    /** 系统列表，默认 YOCTO / TBOX / Android */
     static QStringList systemNames();
+    static QStringList platformIds();
+    static QStringList platformNames();
+    static QString activePlatformId();
+    static bool setActivePlatform(const QString &id);
 
-    /** 取某系统在 logcfg 中配置的全部型号（不含在线过滤） */
+    /** 当前平台下某系统配置的全部型号 */
     static QStringList configuredDevices(const QString &system);
+    /** 非 ip:port 的直连型号 */
+    static QStringList directDevices(const QString &system);
+    /** ip:port 的转发型号 */
+    static QStringList forwardDevices(const QString &system);
 
     static QString adbPath();
     static QString remotePath();
-    /** 空配置时返回 exe 同级 FactoryLogs */
+    /** 当前平台读 USB_SWITCH 用的工具名：mt8676=sysenv_test，mt8678=sysenv-test */
+    static QString sysenvTool();
     static QString localRoot();
     /** 本地端口 → 远端端口：7665→6665，7666→6666，7667→6667 */
     static int forwardRemotePort(int localPort);
+
+    static bool isIpPortSerial(const QString &serial, QString *host = nullptr, int *port = nullptr);
 
 private:
     LogCfg() = delete;
@@ -52,14 +59,17 @@ private:
     struct State {
         QJsonObject root;
         QString path;
+        QString activePlatformId;
         bool loaded = false;
     };
     static State &state();
 
     static QString resolveConfigPath();
-    static QJsonObject defaultConfig();
+    //static QJsonObject defaultConfig();
     static QString normalizeSystemKey(const QString &system);
     static bool loadFromFile(const QString &path, QString *errMsg);
+    static QJsonObject activePlatformObject();
+    static void ensureActivePlatform();
 };
 
 inline LogCfg::State &LogCfg::state()
@@ -68,19 +78,38 @@ inline LogCfg::State &LogCfg::state()
     return s;
 }
 
-inline QJsonObject LogCfg::defaultConfig()
-{
-    return QJsonObject{
-        {"adb_path", "adb"},
-        {"remote_path", "/data/debuglogger/mobilelog"},
-        {"local_root", ""},
-        {"systems", QJsonObject{
-            {"YOCTO", QJsonArray{"YOCTO", "127.0.0.1:7665"}},
-            {"TBOX", QJsonArray{"127.0.0.1:7667"}},
-            {"Android", QJsonArray{"127.0.0.1:7666", "0123456789ABCDEF"}}
-        }}
-    };
-}
+// inline QJsonObject LogCfg::defaultConfig()
+// {
+//     return QJsonObject{
+//         {"adb_path", "adb"},
+//         {"local_root", ""},
+//         {"default_platform", "mt8676"},
+//         {"platforms", QJsonArray{
+//             QJsonObject{
+//                 {"id", "mt8676"},
+//                 {"name", "MT8676"},
+//                 {"remote_path", "/data/debuglogger/mobilelog"},
+//                 {"sysenv_tool", "sysenv_test"},
+//                 {"systems", QJsonObject{
+//                     {"YOCTO", QJsonArray{"YOCTO", "127.0.0.1:7665"}},
+//                     {"TBOX", QJsonArray{"YOCTO", "127.0.0.1:7667"}},
+//                     {"Android", QJsonArray{"0123456789ABCDEF", "127.0.0.1:7666"}}
+//                 }}
+//             },
+//             QJsonObject{
+//                 {"id", "mt8678"},
+//                 {"name", "MT8678"},
+//                 {"remote_path", "/data/debuglogger/mobilelog"},
+//                 {"sysenv_tool", "sysenv-test"},
+//                 {"systems", QJsonObject{
+//                     {"YOCTO", QJsonArray{}},
+//                     {"TBOX", QJsonArray{}},
+//                     {"Android", QJsonArray{}}
+//                 }}
+//             }
+//         }}
+//     };
+// }
 
 inline QString LogCfg::resolveConfigPath()
 {
@@ -112,15 +141,39 @@ inline QString LogCfg::resolveConfigPath()
     return QDir::cleanPath(fallbacks.first());
 }
 
+inline void LogCfg::ensureActivePlatform()
+{
+    if (!state().activePlatformId.isEmpty()) {
+        for (const QJsonValue &v : state().root.value(QStringLiteral("platforms")).toArray()) {
+            if (v.toObject().value(QStringLiteral("id")).toString() == state().activePlatformId)
+                return;
+        }
+    }
+    const QString def = state().root.value(QStringLiteral("default_platform")).toString(QStringLiteral("mt8676"));
+    const QJsonArray platforms = state().root.value(QStringLiteral("platforms")).toArray();
+    for (const QJsonValue &v : platforms) {
+        if (v.toObject().value(QStringLiteral("id")).toString() == def) {
+            state().activePlatformId = def;
+            return;
+        }
+    }
+    if (!platforms.isEmpty())
+        state().activePlatformId = platforms.first().toObject().value(QStringLiteral("id")).toString();
+    else
+        state().activePlatformId = QStringLiteral("mt8676");
+}
+
 inline bool LogCfg::loadFromFile(const QString &path, QString *errMsg)
 {
     QFile f(path);
     if (!f.open(QIODevice::ReadOnly)) {
         if (errMsg)
             *errMsg = QStringLiteral("无法读取配置: %1").arg(path);
-        state().root = defaultConfig();
+        //state().root = defaultConfig();
         state().path = path;
+        state().activePlatformId.clear();
         state().loaded = true;
+        ensureActivePlatform();
         return false;
     }
 
@@ -129,15 +182,35 @@ inline bool LogCfg::loadFromFile(const QString &path, QString *errMsg)
     if (pe.error != QJsonParseError::NoError || !doc.isObject()) {
         if (errMsg)
             *errMsg = QStringLiteral("配置 JSON 解析失败: %1").arg(pe.errorString());
-        state().root = defaultConfig();
+        //state().root = defaultConfig();
         state().path = path;
+        state().activePlatformId.clear();
         state().loaded = true;
+        ensureActivePlatform();
         return false;
     }
 
     state().root = doc.object();
+    // 兼容旧版无 platforms 的单层 systems
+    if (!state().root.contains(QStringLiteral("platforms"))) {
+        QJsonObject legacy = state().root;
+        QJsonObject plat{
+            {"id", "mt8676"},
+            {"name", "MT8676"},
+            {"remote_path", legacy.value(QStringLiteral("remote_path")).toString(QStringLiteral("/data/debuglogger/mobilelog"))},
+            {"systems", legacy.value(QStringLiteral("systems")).toObject()}
+        };
+        state().root = QJsonObject{
+            {"adb_path", legacy.value(QStringLiteral("adb_path")).toString(QStringLiteral("adb"))},
+            {"local_root", legacy.value(QStringLiteral("local_root")).toString()},
+            {"default_platform", "mt8676"},
+            {"platforms", QJsonArray{plat}}
+        };
+    }
     state().path = path;
+    state().activePlatformId.clear();
     state().loaded = true;
+    ensureActivePlatform();
     return true;
 }
 
@@ -151,7 +224,11 @@ inline bool LogCfg::load(QString *errMsg)
 inline bool LogCfg::reload(QString *errMsg)
 {
     const QString path = resolveConfigPath();
-    return loadFromFile(path, errMsg);
+    const QString keepId = state().activePlatformId;
+    const bool ok = loadFromFile(path, errMsg);
+    if (!keepId.isEmpty())
+        setActivePlatform(keepId);
+    return ok;
 }
 
 inline QString LogCfg::configPath()
@@ -174,15 +251,108 @@ inline QString LogCfg::normalizeSystemKey(const QString &system)
     return system.trimmed();
 }
 
+inline QJsonObject LogCfg::activePlatformObject()
+{
+    load();
+    ensureActivePlatform();
+    for (const QJsonValue &v : state().root.value(QStringLiteral("platforms")).toArray()) {
+        const QJsonObject obj = v.toObject();
+        if (obj.value(QStringLiteral("id")).toString() == state().activePlatformId)
+            return obj;
+    }
+    return {};
+}
+
+inline QStringList LogCfg::platformIds()
+{
+    load();
+    QStringList ids;
+    for (const QJsonValue &v : state().root.value(QStringLiteral("platforms")).toArray()) {
+        const QString id = v.toObject().value(QStringLiteral("id")).toString().trimmed();
+        if (!id.isEmpty())
+            ids << id;
+    }
+    return ids;
+}
+
+inline QStringList LogCfg::platformNames()
+{
+    load();
+    QStringList names;
+    for (const QJsonValue &v : state().root.value(QStringLiteral("platforms")).toArray()) {
+        const QJsonObject obj = v.toObject();
+        const QString name = obj.value(QStringLiteral("name")).toString().trimmed();
+        const QString id = obj.value(QStringLiteral("id")).toString().trimmed();
+        names << (name.isEmpty() ? id : name);
+    }
+    return names;
+}
+
+inline QString LogCfg::activePlatformId()
+{
+    load();
+    ensureActivePlatform();
+    return state().activePlatformId;
+}
+
+inline bool LogCfg::setActivePlatform(const QString &id)
+{
+    load();
+    const QString want = id.trimmed();
+    if (want.isEmpty())
+        return false;
+    for (const QJsonValue &v : state().root.value(QStringLiteral("platforms")).toArray()) {
+        if (v.toObject().value(QStringLiteral("id")).toString() == want) {
+            state().activePlatformId = want;
+            return true;
+        }
+    }
+    return false;
+}
+
+inline bool LogCfg::isIpPortSerial(const QString &serial, QString *host, int *port)
+{
+    const int idx = serial.lastIndexOf(':');
+    if (idx <= 0)
+        return false;
+    bool ok = false;
+    const int p = serial.mid(idx + 1).toInt(&ok);
+    if (!ok || p <= 0)
+        return false;
+    if (host) *host = serial.left(idx);
+    if (port) *port = p;
+    return true;
+}
+
 inline QStringList LogCfg::configuredDevices(const QString &system)
 {
     load();
     const QString key = normalizeSystemKey(system);
-    const QJsonArray arr = state().root.value(QStringLiteral("systems")).toObject().value(key).toArray();
+    const QJsonArray arr = activePlatformObject().value(QStringLiteral("systems")).toObject().value(key).toArray();
     QStringList list;
     for (const QJsonValue &v : arr) {
         const QString s = v.toString().trimmed();
         if (!s.isEmpty())
+            list << s;
+    }
+    return list;
+}
+
+inline QStringList LogCfg::directDevices(const QString &system)
+{
+    QStringList list;
+    for (const QString &s : configuredDevices(system)) {
+        if (!isIpPortSerial(s))
+            list << s;
+    }
+    return list;
+}
+
+inline QStringList LogCfg::forwardDevices(const QString &system)
+{
+    QStringList list;
+    for (const QString &s : configuredDevices(system)) {
+        if (isIpPortSerial(s))
             list << s;
     }
     return list;
@@ -198,9 +368,19 @@ inline QString LogCfg::adbPath()
 inline QString LogCfg::remotePath()
 {
     load();
+    const QString fromPlat = activePlatformObject().value(QStringLiteral("remote_path")).toString().trimmed();
+    if (!fromPlat.isEmpty())
+        return fromPlat;
     const QString p = state().root.value(QStringLiteral("remote_path"))
                           .toString(QStringLiteral("/data/debuglogger/mobilelog")).trimmed();
     return p.isEmpty() ? QStringLiteral("/data/debuglogger/mobilelog") : p;
+}
+
+inline QString LogCfg::sysenvTool()
+{
+    load();
+    const QString tool = activePlatformObject().value(QStringLiteral("sysenv_tool")).toString().trimmed();
+    return tool.isEmpty() ? QStringLiteral("sysenv_test") : tool;
 }
 
 inline QString LogCfg::localRoot()
@@ -214,7 +394,6 @@ inline QString LogCfg::localRoot()
 
 inline int LogCfg::forwardRemotePort(int localPort)
 {
-    // adb -d forward tcp:7665 tcp:6665 等
     if (localPort >= 1000)
         return localPort - 1000;
     return 6666;
@@ -230,6 +409,9 @@ class LogExtractManage : public QObject {
     Q_PROPERTY(bool yoctoOnline READ yoctoOnline NOTIFY connectionStatusChanged)
     Q_PROPERTY(bool tboxOnline READ tboxOnline NOTIFY connectionStatusChanged)
     Q_PROPERTY(bool androidOnline READ androidOnline NOTIFY connectionStatusChanged)
+    Q_PROPERTY(QStringList platformIds READ platformIds NOTIFY platformsChanged)
+    Q_PROPERTY(QStringList platformNames READ platformNames NOTIFY platformsChanged)
+    Q_PROPERTY(QString activePlatformId READ activePlatformId WRITE setActivePlatform NOTIFY activePlatformChanged)
 
 public:
     Q_INVOKABLE void extractAll();
@@ -243,6 +425,11 @@ public:
     /** 刷新 YOCTO / TBOX / Android 是否已在 adb devices 中（可拉取） */
     Q_INVOKABLE void refreshConnectionStatus();
     Q_INVOKABLE bool isSystemOnline(const QString &systemName) const;
+
+    QStringList platformIds() const { return LogCfg::platformIds(); }
+    QStringList platformNames() const { return LogCfg::platformNames(); }
+    QString activePlatformId() const { return LogCfg::activePlatformId(); }
+    Q_INVOKABLE void setActivePlatform(const QString &id);
 
     bool extracting() const { return m_extracting.load(); }
     QString localRoot() const { return m_localRoot; }
@@ -261,6 +448,8 @@ signals:
     void localCleared(bool ok, const QString &msg);
     void connectionStatusChanged();
     void connectionRefreshFinished();
+    void platformsChanged();
+    void activePlatformChanged();
 
 private:
     LogExtractManage(QObject *parent = nullptr);
@@ -268,21 +457,16 @@ private:
 
     void setStatus(const QString &text);
     void emitLog(const QString &msg);
-    /** 退出保护：打断正在进行的 adb，尽快结束工作线程 */
     void requestStop();
 
     bool loadConfig();
     QString adbBin() const;
 
     QString runAdb(const QStringList &args, int timeoutMs = 60000, int *exitCode = nullptr);
-    /** 连接前统一执行一次 adb kill-server / start-server */
     bool restartAdbServer();
-    /** 进程生命周期内只执行一次 kill-server/start-server */
     bool ensureAdbServerOnce();
     bool ensureDeviceReady(const QString &serial);
-    /** 若型号为 offline：adb disconnect 后再按需重连；返回是否已处理离线 */
     bool disconnectIfOffline(const QString &serial);
-    /** IP 型号：forward + connect；USB 型号：仅检查在线 */
     bool connectSerial(const QString &serial);
     bool pullSystemLogs(const QString &systemName, const QString &serial, const QString &saveDir);
     QString uniqueTargetPath(const QString &dir, const QString &baseName) const;
@@ -290,6 +474,16 @@ private:
     QString resolveSystemDir(const QString &systemName, const QString &saveDir) const;
     bool prepareAdbSession();
     bool isIpPortSerial(const QString &serial, QString *host = nullptr, int *port = nullptr) const;
+
+    /** 读 USB_SWITCH 原始值（如 Y/T/A） */
+    QString readUsbSwitchRaw();
+    /** USB_SWITCH → YOCTO/TBOX/Android，失败返回空 */
+    QString activeSystemFromSwitch(const QString &raw) const;
+    /** 按 SWITCH 为系统选出应使用的 serial */
+    QString resolveSerialForSystem(const QString &systemName);
+    /** 刷新会话级 SWITCH 缓存并打日志 */
+    bool refreshUsbSwitchCache();
+
     void extractAllWorker();
     void extractSystemWorker(const QString &systemName, const QString &saveDir);
     bool probeSystemOnline(const QString &systemName);
@@ -297,6 +491,8 @@ private:
 
     QString m_localRoot;
     QString m_statusText;
+    QString m_usbSwitchRaw;
+    QString m_usbSwitchSystem;
     bool m_yoctoOnline = false;
     bool m_tboxOnline = false;
     bool m_androidOnline = false;
