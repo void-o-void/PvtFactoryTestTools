@@ -78,39 +78,6 @@ inline LogCfg::State &LogCfg::state()
     return s;
 }
 
-// inline QJsonObject LogCfg::defaultConfig()
-// {
-//     return QJsonObject{
-//         {"adb_path", "adb"},
-//         {"local_root", ""},
-//         {"default_platform", "mt8676"},
-//         {"platforms", QJsonArray{
-//             QJsonObject{
-//                 {"id", "mt8676"},
-//                 {"name", "MT8676"},
-//                 {"remote_path", "/data/debuglogger/mobilelog"},
-//                 {"sysenv_tool", "sysenv_test"},
-//                 {"systems", QJsonObject{
-//                     {"YOCTO", QJsonArray{"YOCTO", "127.0.0.1:7665"}},
-//                     {"TBOX", QJsonArray{"YOCTO", "127.0.0.1:7667"}},
-//                     {"Android", QJsonArray{"0123456789ABCDEF", "127.0.0.1:7666"}}
-//                 }}
-//             },
-//             QJsonObject{
-//                 {"id", "mt8678"},
-//                 {"name", "MT8678"},
-//                 {"remote_path", "/data/debuglogger/mobilelog"},
-//                 {"sysenv_tool", "sysenv-test"},
-//                 {"systems", QJsonObject{
-//                     {"YOCTO", QJsonArray{}},
-//                     {"TBOX", QJsonArray{}},
-//                     {"Android", QJsonArray{}}
-//                 }}
-//             }
-//         }}
-//     };
-// }
-
 inline QString LogCfg::resolveConfigPath()
 {
     const QStringList searchRoots = {
@@ -471,7 +438,7 @@ private:
     bool pullSystemLogs(const QString &systemName, const QString &serial, const QString &saveDir);
     QString uniqueTargetPath(const QString &dir, const QString &baseName) const;
     QString mobilelogBaseName(const QString &systemName) const;
-    QString resolveSystemDir(const QString &systemName, const QString &saveDir) const;
+    QString resolveSystemDir(const QString &systemName, const QString &saveDir) const;//设置系统得日志保存到那个文件夹
     bool prepareAdbSession();
     bool isIpPortSerial(const QString &serial, QString *host = nullptr, int *port = nullptr) const;
 
@@ -479,8 +446,14 @@ private:
     QString readUsbSwitchRaw();
     /** USB_SWITCH → YOCTO/TBOX/Android，失败返回空 */
     QString activeSystemFromSwitch(const QString &raw) const;
-    /** 按 SWITCH 为系统选出应使用的 serial */
+    /** 按 SWITCH / 失败回退策略，返回该系统待尝试的型号列表（有序） */
+    QStringList resolveSerialCandidatesForSystem(const QString &systemName);
+    /** 兼容：返回候选列表中的第一个 */
     QString resolveSerialForSystem(const QString &systemName);
+    /** 按候选顺序尝试连接，成功返回实际连上的 serial，失败返回空 */
+    QString connectSystem(const QString &systemName);
+    /** 单型号：已连接 / offline 恢复 / 新连 */
+    bool trySerialReady(const QString &serial);
     /** 刷新会话级 SWITCH 缓存并打日志 */
     bool refreshUsbSwitchCache();
 

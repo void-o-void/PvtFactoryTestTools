@@ -30,6 +30,8 @@ private:
 
     bool pushHandshake(bool &exit);
     bool pushConfig(bool &exit);
+    /** 下发老化测试项列表（code=102） */
+    void pushTestItems();
     void pushStatusQuery();
     void handleStatus(const MessageEntity& msg);
 

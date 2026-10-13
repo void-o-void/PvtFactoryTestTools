@@ -31,7 +31,7 @@ Rectangle {
         customSavePaths = next
         appendOp("[OK] " + title + " 保存路径已设为: " + chosen)
     }
-
+    //当用户点击单个系统拉取的标签时会自动调用extractSystem函数来实现拉取
     function extractOne(title) {
         if (root.phase === "extracting")
             return

@@ -220,34 +220,108 @@ bool LogExtractManage::refreshUsbSwitchCache()
     return true;
 }
 
-QString LogExtractManage::resolveSerialForSystem(const QString &systemName)
+QStringList LogExtractManage::resolveSerialCandidatesForSystem(const QString &systemName)
 {
     const QString key = systemName.trimmed();
     const QStringList directs = LogCfg::directDevices(key);
     const QStringList forwards = LogCfg::forwardDevices(key);
 
-    const bool useDirect = !m_usbSwitchSystem.isEmpty()
-        && key.compare(m_usbSwitchSystem, Qt::CaseInsensitive) == 0;
+    QStringList out;
+    auto appendUnique = [&out](const QStringList &list) {
+        for (const QString &s : list) {
+            if (!s.isEmpty() && !out.contains(s))
+                out << s;
+        }
+    };
 
-    if (useDirect) {
-        if (!directs.isEmpty()) {
-            emitLog(QStringLiteral("[OK] %1 与 USB_SWITCH 一致，使用直连型号: %2")
-                        .arg(key, directs.first()));
-            return directs.first();
-        }
-        emitLog(QStringLiteral("[WARN] %1 应为直连但未配置直连型号，回退转发").arg(key));
-    } else {
-        if (!forwards.isEmpty()) {
-            emitLog(QStringLiteral("[OK] %1 非当前 SWITCH 系统，使用转发型号: %2")
-                        .arg(key, forwards.first()));
-            return forwards.first();
-        }
-        if (!directs.isEmpty()) {
-            emitLog(QStringLiteral("[WARN] %1 未配置转发型号，回退直连: %2")
-                        .arg(key, directs.first()));
-            return directs.first();
-        }
+    // USB_SWITCH 读失败：先直连，再转发
+    if (m_usbSwitchSystem.isEmpty()) {
+        emitLog(QStringLiteral("[WARN] %1：USB_SWITCH 未知，候选顺序=直连 → 转发")
+                    .arg(key));
+        appendUnique(directs);
+        appendUnique(forwards);
+        return out;
     }
+
+    // 与 SWITCH 一致：先直连，再转发兜底
+    if (key.compare(m_usbSwitchSystem, Qt::CaseInsensitive) == 0) {
+        emitLog(QStringLiteral("[OK] %1 与 USB_SWITCH 一致，候选顺序=直连 → 转发")
+                    .arg(key));
+        appendUnique(directs);
+        appendUnique(forwards);
+        return out;
+    }
+
+    // 非当前 SWITCH 系统：先转发，再直连兜底
+    emitLog(QStringLiteral("[OK] %1 非当前 SWITCH 系统，候选顺序=转发 → 直连")
+                .arg(key));
+    appendUnique(forwards);
+    appendUnique(directs);
+    return out;
+}
+
+QString LogExtractManage::resolveSerialForSystem(const QString &systemName)
+{
+    const QStringList candidates = resolveSerialCandidatesForSystem(systemName);
+    return candidates.isEmpty() ? QString() : candidates.first();
+}
+
+bool LogExtractManage::trySerialReady(const QString &serial)
+{
+    if (serial.isEmpty() || m_abort.load())
+        return false;
+
+    // 已连接：不动
+    if (AdbDeviceQuery().deviceStatus(serial)
+            .compare(QStringLiteral("device"), Qt::CaseInsensitive) == 0)
+        return true;
+
+    const QString status = AdbDeviceQuery().deviceStatus(serial);
+    if (status.compare(QStringLiteral("offline"), Qt::CaseInsensitive) == 0) {
+        disconnectIfOffline(serial);
+        if (m_abort.load())
+            return false;
+        return connectSerial(serial);
+    }
+
+    // 未出现：尝试连接（直连名依赖已在 devices 中；转发会 forward+connect）
+    return connectSerial(serial);
+}
+
+QString LogExtractManage::connectSystem(const QString &systemName)
+{
+    const QStringList candidates = resolveSerialCandidatesForSystem(systemName);//adb连接系统方式  根据能否识别到当前系统来的
+    if (candidates.isEmpty()) {
+        emitLog(QStringLiteral("[WARN] %1 未配置可用型号").arg(systemName));
+        return {};
+    }
+
+    emitLog(QStringLiteral("[OK] %1 连接候选: %2")
+                .arg(systemName, candidates.join(QStringLiteral(", "))));
+
+    for (int i = 0; i < candidates.size(); ++i) {
+        if (m_abort.load())
+            return {};
+
+        const QString &serial = candidates.at(i);
+        const bool isForward = LogCfg::isIpPortSerial(serial);
+        emitLog(QStringLiteral("[OK] %1 尝试%2 (%3/%4): %5")
+                    .arg(systemName,
+                         isForward ? QStringLiteral("转发") : QStringLiteral("直连"),
+                         QString::number(i + 1),
+                         QString::number(candidates.size()),
+                         serial));
+
+        if (trySerialReady(serial)) {//devices状态不动  不在线时执行断开再重新连接
+            emitLog(QStringLiteral("[OK] %1 已连接: %2").arg(systemName, serial));
+            return serial;
+        }
+
+        emitLog(QStringLiteral("[WARN] %1 未能通过 %2 连接")
+                    .arg(systemName, serial));
+    }
+
+    emitLog(QStringLiteral("[ERR] %1 直连与转发均未连接成功").arg(systemName));
     return {};
 }
 
@@ -305,27 +379,7 @@ bool LogExtractManage::isSystemOnline(const QString &systemName) const
 
 bool LogExtractManage::probeSystemOnline(const QString &systemName)
 {
-    const QString serial = resolveSerialForSystem(systemName);
-    if (serial.isEmpty()) {
-        emitLog(QStringLiteral("[WARN] %1 未配置可用型号").arg(systemName));
-        return false;
-    }
-
-    // 已连接：刷新时不动
-    if (AdbDeviceQuery().deviceStatus(serial)
-            .compare(QStringLiteral("device"), Qt::CaseInsensitive) == 0)
-        return true;
-
-    const QString status = AdbDeviceQuery().deviceStatus(serial);
-    if (status.compare(QStringLiteral("offline"), Qt::CaseInsensitive) == 0) {
-        disconnectIfOffline(serial);
-        if (m_abort.load())
-            return false;
-        return connectSerial(serial);
-    }
-
-    // 未出现：正常尝试连接
-    return connectSerial(serial);
+    return !connectSystem(systemName).isEmpty();
 }
 
 void LogExtractManage::refreshConnectionStatus()
@@ -550,7 +604,7 @@ bool LogExtractManage::prepareAdbSession()
     emitLog(QString("[OK] adb devices: %1")
                 .arg(devices.isEmpty() ? QStringLiteral("(空)") : devices.join(", ")));
 
-    if (devices.isEmpty()) {
+    if (devices.isEmpty()) {//确认有没有设备连接
         setStatus("无设备连接");
         emit noDeviceConnected();
         emitLog("[ERR] 无设备连接，请检查 USB/ADB 后重试");
@@ -590,16 +644,16 @@ void LogExtractManage::extractAll()
 
 void LogExtractManage::extractSystem(const QString &systemName, const QString &saveDir)
 {
-    if (m_extracting.load()) {
+    if (m_extracting.load()) {//用原子读的方式从内存里拿最新值  保证数据可靠
         emitLog("[WARN] 正在提取中，请稍候");
         return;
     }
 
-    if (m_worker.joinable())
-        m_worker.join();
+    if (m_worker.joinable())//确认线程是否还活着
+        m_worker.join();//活着就阻塞等他跑完
 
-    m_abort.store(false);
-    m_extracting = true;
+    m_abort.store(false);//清掉取消标志位 这次提取从头开始
+    m_extracting = true;//将标志位改成提取中
     emit extractingChanged();
     setStatus(QString("提取 %1…").arg(systemName));
 
@@ -625,9 +679,9 @@ void LogExtractManage::extractAllWorker()
         if (m_abort.load())
             break;
 
-        const QString serial = resolveSerialForSystem(sysName);
+        const QString serial = connectSystem(sysName);
         if (serial.isEmpty()) {
-            emitLog(QString("[WARN] %1 未配置型号，跳过").arg(sysName));
+            emitLog(QString("[WARN] %1 无法连接，跳过").arg(sysName));
             ++failCount;
             continue;
         }
@@ -664,23 +718,23 @@ void LogExtractManage::extractSystemWorker(const QString &systemName, const QStr
     int failCount = 0;
 
     emitLog(QString("[OK] ========== 开始单独提取 %1 ==========").arg(systemName));
-    const QString dest = resolveSystemDir(systemName, saveDir);
+    const QString dest = resolveSystemDir(systemName, saveDir);//设置要保存日志得路径
     emitLog(QString("[OK] 保存目录: %1").arg(dest));
 
-    if (!prepareAdbSession()) {
+    if (!prepareAdbSession()) {//判断是否有设备连接  没有的话直接进入判断执行拉取取消
         m_extracting = false;
         emit extractingChanged();
         emit extractFinished(false, m_abort.load() ? QStringLiteral("已取消") : QStringLiteral("无设备连接"));
         return;
     }
 
-    const QString serial = resolveSerialForSystem(systemName);
+    const QString serial = connectSystem(systemName);
     if (serial.isEmpty()) {
-        emitLog(QString("[WARN] %1 未配置可用型号，无法拉取").arg(systemName));
-        setStatus("未配置型号");
+        emitLog(QString("[WARN] %1 无法连接，无法拉取").arg(systemName));
+        setStatus("连接失败");
         m_extracting = false;
         emit extractingChanged();
-        emit extractFinished(false, "未配置型号");
+        emit extractFinished(false, "连接失败");
         return;
     }
 

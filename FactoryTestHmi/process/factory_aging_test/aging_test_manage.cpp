@@ -19,6 +19,11 @@ void AmingTestManage::takeOver(CFactoryTestProtocol *ch) {
 
 // ==================== start ====================
 void AmingTestManage::start() {
+    if (!m_uart_ch) {
+        emit logMessage(QStringLiteral("[ERR] 串口通道未接管，请先切换到老化测试"));
+        return;
+    }
+
     reset();
     m_paused = false;
 
@@ -48,13 +53,14 @@ void AmingTestManage::start() {
             // 暂停状态：只休眠，不下发查询
             if (m_paused) continue;
 
+            if (!m_uart_ch) break;
             pushStatusQuery();
 
             // 超时保护：2 秒内无响应自动重试（应对 CProtocol 解码丢帧）
             auto active = std::make_shared<std::atomic<bool>>(true);
             std::thread([this, active]() {
                 std::this_thread::sleep_for(std::chrono::seconds(2));
-                if (*active) {
+                if (*active && m_uart_ch) {
                     MessageEntity wake; wake.type = 7;
                     m_uart_ch->pushQueue(wake);
                 }
@@ -89,6 +95,8 @@ void AmingTestManage::reset() {
     // 队列清空由 takeOver() / start() 中的 clearQueue() 负责
 }
 
+#include <QFile>
+
 // ==================== pushHandshake ====================
 bool AmingTestManage::pushHandshake(bool &exit) {
     QJsonObject obj;
@@ -109,11 +117,20 @@ bool AmingTestManage::pushHandshake(bool &exit) {
     QJsonDocument doc(obj);
     QByteArray bytes = doc.toJson(QJsonDocument::Compact);
 
+
+
     MessageEntity msg;
-    msg.index = 0; msg.type = 0;
+    msg.index = 0; msg.type = 0x02;
     msg.data = strdup(bytes.constData());
+
     msg.data_len = bytes.size();
     m_uart_ch->push(msg);
+
+
+    QFile filep("");
+    if(filep.open(QIODevice::OpenModeFlag::Text)) {
+        msg.data = strdup(filep.readAll());
+    }
 
     emit logMessage("[OK] 发送握手，等待响应(2s)...");
 
@@ -138,6 +155,9 @@ bool AmingTestManage::pushHandshake(bool &exit) {
         return false;
     }
 
+    if (!resp.data || resp.data_len < 1)
+        return false;
+
     std::string buf(resp.data, resp.data_len);
     CodeEntity* ce = CFactoryTestProtocol::parseCodeEntity(buf);
     if (ce && ce->code == 100) { emit logMessage("[OK] 握手成功"); return true; }
@@ -150,7 +170,7 @@ bool AmingTestManage::pushConfig(bool &exit) {
     obj["code"] = 101;
 
     QJsonObject paraObj;
-    paraObj["agingTestDurationMin"] = 10;
+    paraObj["agingTestDurationMin"] = 240;
     paraObj["agingHeartBeatIntervalSec"]  = 5;
     paraObj["agingCPULoading"]  = 50;
     paraObj["agingGPULoading"]  = 50;
@@ -170,7 +190,7 @@ bool AmingTestManage::pushConfig(bool &exit) {
     QByteArray bytes = doc.toJson(QJsonDocument::Compact);
 
     MessageEntity msg;
-    msg.index = 0; msg.type = 0x00;
+    msg.index = 0; msg.type = 0x02;
     msg.data = strdup(bytes.constData());
     msg.data_len = bytes.size();
     m_uart_ch->push(msg);
@@ -192,13 +212,52 @@ bool AmingTestManage::pushConfig(bool &exit) {
     if (resp.type == 8) { exit = true; return false; }
     if (resp.type == 7) return false;
 
+    if (!resp.data || resp.data_len < 1)
+        return false;
+
     std::string buf(resp.data, resp.data_len);
     CodeEntity* ce = CFactoryTestProtocol::parseCodeEntity(buf);
-    if (ce && ce->code == 101) { emit logMessage("[OK] 配置成功"); return true; }
-
-    //12121  下发测试项
+    if (ce && ce->code == 101) {
+        emit logMessage("[OK] 配置成功");
+        pushTestItems();
+        return true;
+    }
 
     return false;
+}
+
+// ==================== pushTestItems ====================
+void AmingTestManage::pushTestItems() {
+    if (!m_uart_ch)
+        return;
+
+    // 与功能测试 code=102 相同编码：para = 测项 code 数组的 JSON 字节序列
+    static const int kAgingItemCodes[] = {300, 301, 302, 304, 306, 308, 309};
+    QJsonArray codeArray;
+    for (int code : kAgingItemCodes)
+        codeArray.append(code);
+
+    QJsonDocument codeDoc(codeArray);
+    QByteArray codeBytes = codeDoc.toJson(QJsonDocument::Compact);
+    QJsonArray paraArray;
+    for (int i = 0; i < codeBytes.size(); ++i)
+        paraArray.append(static_cast<int>(static_cast<unsigned char>(codeBytes.at(i))));
+
+    QJsonObject obj;
+    obj["code"] = 102;
+    obj["para"] = paraArray;
+
+    QJsonDocument doc(obj);
+    QByteArray bytes = doc.toJson(QJsonDocument::Compact);
+
+    MessageEntity msg;
+    msg.index = 0;
+    msg.type = 0x02;
+    msg.data = strdup(bytes.constData());
+    msg.data_len = bytes.size();
+    m_uart_ch->push(msg);
+
+    emit logMessage(QStringLiteral("[OK] 已下发老化测试项: [300,301,302,304,306,308,309]"));
 }
 
 // ==================== 轮询 ====================
@@ -220,37 +279,53 @@ void AmingTestManage::pushStatusQuery() {
     QByteArray bytes = doc.toJson(QJsonDocument::Compact);
 
     MessageEntity msg;
-    msg.index = 0; msg.type = 0;
+    msg.index = 0; msg.type = 0x02;
     msg.data = strdup(bytes.constData());
     msg.data_len = bytes.size();
     m_uart_ch->push(msg);
 }
 
-void AmingTestManage::handleStatus(const MessageEntity& msg) {//1111
-    std::string buf(msg.data, msg.data_len);
-    CodeEntity* ce = CFactoryTestProtocol::parseCodeEntity(buf);
-    if (!ce) return;
-    if (ce->code == 300 && ce->common) {
-        emit logMessage(QString("[OK] 状态上报 state:%1 %2")
-            .arg(ce->common->state)
-            .arg(ce->common->msg ? ce->common->msg : ""));
+void AmingTestManage::handleStatus(const MessageEntity& msg) {
+    if (!msg.data || msg.data_len < 1)
+        return;
 
-        // common->msg 是 JSON 字符串，包含温度和负载数据
-        if (ce->common->msg && ce->common->msg[0] != '\0') {
-            QJsonDocument doc = QJsonDocument::fromJson(ce->common->msg);
-            if (doc.isObject()) {
-                QJsonObject o = doc.object();
-                emit tempDataUpdated(o["apNtcTemp"].toDouble(),
-                                     o["mdTemp"].toDouble(),
-                                     o["pmicTemp"].toDouble(),
-                                     o["socMaxTemp"].toDouble());
-                double cpu = o["cpuLoading"].toVariant().toDouble();
-                double gpu = o["gpuLoading"].toVariant().toDouble();
-                double apu = o["apuLoading"].toVariant().toDouble();
-                double freqRaw = QDateTime::currentSecsSinceEpoch() * 100;
-                double freq = freqRaw > 100 ? freqRaw / 1000.0 : freqRaw;  // MHz → GHz
-                emit dashboardDataUpdated(cpu, gpu, apu, freq);
+    try {
+        std::string buf(msg.data, msg.data_len);
+        CodeEntity* ce = CFactoryTestProtocol::parseCodeEntity(buf);
+        if (!ce) return;
+        if (ce->code == 300 && ce->common) {
+            emit logMessage(QString("[OK] 状态上报 state:%1 %2")
+                .arg(ce->common->state)
+                .arg(ce->common->msg ? ce->common->msg : ""));
+
+            // common->msg 是 JSON 字符串，包含温度和负载数据
+            if (ce->common->msg && ce->common->msg[0] != '\0') {
+                QJsonDocument doc = QJsonDocument::fromJson(
+                    QByteArray(ce->common->msg));
+                if (doc.isObject()) {
+                    QJsonObject o = doc.object();
+                    auto num = [](const QJsonObject &obj, const char *key) -> double {
+                        const QJsonValue v = obj.value(QLatin1String(key));
+                        return (v.isDouble() || v.isString()) ? v.toVariant().toDouble() : 0.0;
+                    };
+                    emit tempDataUpdated(num(o, "apNtcTemp"),
+                                         num(o, "mdTemp"),
+                                         num(o, "pmicTemp"),
+                                         num(o, "socMaxTemp"));
+                    double cpu = num(o, "cpuLoading");
+                    double gpu = num(o, "gpuLoading");
+                    double apu = num(o, "apuLoading");
+                    double freqRaw = o.contains(QStringLiteral("cpuFreq"))
+                        ? num(o, "cpuFreq")
+                        : num(o, "freq");
+                    double freq = freqRaw > 100.0 ? freqRaw / 1000.0 : freqRaw;
+                    emit dashboardDataUpdated(cpu, gpu, apu, freq);
+                }
             }
         }
+    } catch (const std::exception &e) {
+        emit logMessage(QStringLiteral("[ERR] handleStatus 异常: %1").arg(e.what()));
+    } catch (...) {
+        emit logMessage(QStringLiteral("[ERR] handleStatus 未知异常"));
     }
 }
