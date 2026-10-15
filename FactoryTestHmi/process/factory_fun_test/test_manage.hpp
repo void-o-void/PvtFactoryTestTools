@@ -47,6 +47,7 @@ public:
     Q_INVOKABLE void switchToAging();
     Q_INVOKABLE void switchToFunctional();
     Q_INVOKABLE void switchToLogExtract();
+    Q_INVOKABLE void switchToCommDebug();
 
 signals:
     void stateChanged(int state);

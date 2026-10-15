@@ -102,6 +102,7 @@ Rectangle {
                     width: 8; height: 8; radius: 4
                     color: topHeader.currentView === "功能测试" ? "#60a5fa"
                          : topHeader.currentView === "老化测试" ? "#f59e0b"
+                         : topHeader.currentView === "通讯调试" ? "#a78bfa"
                          : "#22d3ee"
                     anchors.verticalCenter: parent.verticalCenter
                 }
@@ -244,6 +245,41 @@ Rectangle {
                                 topHeader.currentView = "日志提取"
                                 topHeader.viewChanged("日志提取")
                                 testManage.switchToLogExtract()
+                                navPopup.close()
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        width: parent.width; height: 42; radius: 6
+                        color: topHeader.currentView === "通讯调试" ? "#1e3a5f" :
+                               (commDebugMouse.containsMouse ? "#1e293b" : "transparent")
+                        Behavior on color { ColorAnimation { duration: 120 } }
+
+                        Row {
+                            anchors.centerIn: parent; spacing: 10
+                            Rectangle {
+                                width: 6; height: 6; radius: 3
+                                color: topHeader.currentView === "通讯调试" ? "#a78bfa" : "#475569"
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+                            Text {
+                                text: "通讯调试"
+                                font.pixelSize: 14
+                                color: topHeader.currentView === "通讯调试" ? "#a78bfa" : "#94a3b8"
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+                        }
+
+                        MouseArea {
+                            id: commDebugMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                topHeader.currentView = "通讯调试"
+                                topHeader.viewChanged("通讯调试")
+                                testManage.switchToCommDebug()
                                 navPopup.close()
                             }
                         }

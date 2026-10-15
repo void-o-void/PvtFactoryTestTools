@@ -43,6 +43,12 @@ public:
         while (m_queue.try_pop().has_value()) {}
     }
 
+    /** 清空串口 RX 软件队列 + 驱动缓冲 */
+    void clearRxBuffer() {
+        if (m_channel)
+            m_channel->clearRxBuffer();
+    }
+
     using json = nlohmann::json;
 
     // ==================== 解析函数 ====================
@@ -89,67 +95,26 @@ public:
     static CodeEntity* parseCodeEntity(std::string buf) {
         if (buf.empty()) return nullptr;
 
-        try {
-            json data = json::parse(buf);
-            CodeEntity* code_entity = new CodeEntity();
-            code_entity->common = new CommonEntity;
-            code_entity->common->action = -1;
-            code_entity->common->state = -1;
-            code_entity->common->msg = nullptr;
-            code_entity->code = -1;
+        json data = json::parse(buf);
+        CodeEntity* code_entity = new CodeEntity();
+        code_entity->code = data["code"].get<int>();
+        code_entity->common = new CommonEntity;
+        code_entity->common->msg = nullptr;
 
-            // code：允许缺省/null，避免 type_error.302 直接 terminate
-            if (data.contains("code") && data["code"].is_number())
-                code_entity->code = data["code"].get<int>();
+        // 1. 取出 para 数组，转换为字符串
+        std::vector<uint8_t> para_bytes = data["para"].get<std::vector<uint8_t>>();
+        std::string inner_json_str(para_bytes.begin(), para_bytes.end());
 
-            // para：字节数组 → 内层 JSON；缺失/空则返回仅带 code 的实体
-            if (!data.contains("para") || data["para"].is_null())
-                return code_entity;
+        // 2. 二次解析得到真正的参数对象
+        json inner = json::parse(inner_json_str);
+        code_entity->common->action = inner["action"].get<int>();
+        code_entity->common->state  = inner["state"].get<int>();
 
-            std::vector<uint8_t> para_bytes;
-            if (data["para"].is_array())
-                para_bytes = data["para"].get<std::vector<uint8_t>>();
-            else
-                return code_entity;
-
-            if (para_bytes.empty())
-                return code_entity;
-
-            std::string inner_json_str(para_bytes.begin(), para_bytes.end());
-            json inner = json::parse(inner_json_str);
-
-            if (inner.contains("action") && inner["action"].is_number())
-                code_entity->common->action = inner["action"].get<int>();
-
-            if (inner.contains("state") && inner["state"].is_number())
-                code_entity->common->state = inner["state"].get<int>();
-
-            // msg 可能是 string，也可能是 object（老化状态上报），统一存成字符串
-            if (inner.contains("msg") && !inner["msg"].is_null()) {
-                if (inner["msg"].is_string()) {
-                    std::string str = inner["msg"].get<std::string>();
-                    code_entity->common->msg = strdup(str.c_str());
-                } else {
-                    std::string str = inner["msg"].dump();
-                    code_entity->common->msg = strdup(str.c_str());
-                }
-            }
-
-            // 部分设备把温度/负载直接放在 para 内层根对象（无 action/state/msg 包装）
-            if (!code_entity->common->msg
-                && (inner.contains("cpuLoading") || inner.contains("apNtcTemp")
-                    || inner.contains("cpuFreq") || inner.contains("freq"))) {
-                code_entity->common->msg = strdup(inner.dump().c_str());
-            }
-
-            return code_entity;
-        } catch (const json::exception &e) {
-            printf("JSON parse error in parseCodeEntity: %s\n", e.what());
-            return nullptr;
-        } catch (const std::exception &e) {
-            printf("parseCodeEntity error: %s\n", e.what());
-            return nullptr;
+        if (inner.find("msg") != inner.end()) {
+            std::string str = inner["msg"].get<std::string>();
+            code_entity->common->msg = strdup(str.c_str());
         }
+        return code_entity;
     }
 
     // ==================== 序列化函数 ====================

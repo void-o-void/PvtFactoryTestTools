@@ -43,6 +43,8 @@ Window {
                 viewLoader.sourceComponent = agingComp//原来是agingComp
             else if (name === "日志提取")
                 viewLoader.sourceComponent = logExtractComp
+            else if (name === "通讯调试")
+                viewLoader.sourceComponent = commDebugComp
             else
                 viewLoader.sourceComponent = factoryComp//原来是factoryComp  因为要只展示日志提取界面 所以改了
         }
@@ -76,5 +78,11 @@ Window {
     Component {
         id: logExtractComp
         UiLogExtract { }
+    }
+
+    // 通讯调试界面
+    Component {
+        id: commDebugComp
+        UiCommDebug { }
     }
 }

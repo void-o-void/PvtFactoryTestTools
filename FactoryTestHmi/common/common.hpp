@@ -30,7 +30,8 @@ typedef enum {
 
 typedef enum {
     FUNC = 0x01,
-    AGING = 0x02
+    AGING = 0x02,
+    COMM_DEBUG = 0x03
 } TestMode;
 
 // CommonEntity结构体

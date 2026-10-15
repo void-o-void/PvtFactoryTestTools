@@ -8,6 +8,7 @@
 #include <mutex>
 #include <thread>
 #include <iostream>
+#include <cstring>
 
 #include "Channel.hpp"
 #include "BlockingQueu.hpp"

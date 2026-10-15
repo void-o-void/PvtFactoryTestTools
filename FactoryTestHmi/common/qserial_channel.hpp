@@ -12,6 +12,7 @@
 #include <QSerialPortInfo>
 #include <QThread>
 #include <QDebug>
+#include <QDateTime>
 #include <QMetaObject>
 #include <memory>
 #include <deque>
@@ -72,31 +73,61 @@ public slots:
     }
 
     // 来自调用方的异步写入
+    // 同口环回时：写的过程中必须顺带把 RX 吸进字节队列，
+    // 否则 waitForBytesWritten 占住 I/O 线程，readyRead 迟迟不跑，驱动缓冲一满就丢字节 → 发N回不齐
     void writeData(QByteArray data) {
+        if (!m_serial || !m_serial->isOpen())
+            return;
+
+        std::lock_guard<std::mutex> lock(m_writeMutex);
+        m_serial->write(data);
+        m_serial->flush();
+
+        const qint64 deadline = QDateTime::currentMSecsSinceEpoch()
+            + qMax(150, data.size() / 5 + 80);
+        while (m_serial->bytesToWrite() > 0
+               && QDateTime::currentMSecsSinceEpoch() < deadline) {
+            m_serial->waitForBytesWritten(5);
+            drainRxToQueue();
+        }
+        // 写完后再吸几轮环回，避免尾包留在驱动里
+        for (int i = 0; i < 20; ++i) {
+            drainRxToQueue();
+            if (m_serial->bytesAvailable() <= 0
+                && !m_serial->waitForReadyRead(3))
+                break;
+        }
+        drainRxToQueue();
+    }
+
+    void clearPortBuffers() {
         if (m_serial && m_serial->isOpen()) {
-            std::lock_guard<std::mutex> lock(m_writeMutex);
-            m_serial->write(data);
-            m_serial->waitForBytesWritten(100);
+            m_serial->clear(QSerialPort::AllDirections);
         }
     }
 
 private slots:
     void onReadyRead() {
-        if (!m_serial || !m_serial->isOpen()) return;
-
-        QByteArray data = m_serial->readAll();
-        if (data.isEmpty()) return;
-
-        {
-            std::lock_guard<std::mutex> lock(m_mutex);
-            for (int i = 0; i < data.size(); ++i) {
-                m_byteQueue.push_back(static_cast<uint8_t>(data[i]));
-            }
-        }
-        m_cv.notify_one();   // 唤醒 readData 中等待的协议线程
+        drainRxToQueue();
     }
 
 private:
+    void drainRxToQueue() {
+        if (!m_serial || !m_serial->isOpen())
+            return;
+
+        QByteArray data = m_serial->readAll();
+        if (data.isEmpty())
+            return;
+
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            for (int i = 0; i < data.size(); ++i)
+                m_byteQueue.push_back(static_cast<uint8_t>(data[i]));
+        }
+        m_cv.notify_one();
+    }
+
     void closePort() {
         if (m_serial) {
             disconnect(m_serial, &QSerialPort::readyRead,
@@ -233,6 +264,18 @@ public:
 
     std::string descr() const override {
         return "Serial Channel";
+    }
+
+    void clearRxBuffer() override {
+        {
+            std::lock_guard<std::mutex> lock(m_byteMutex);
+            m_byteQueue.clear();
+        }
+        if (m_worker && m_is_run) {
+            QMetaObject::invokeMethod(m_worker, [this]() {
+                m_worker->clearPortBuffers();
+            }, Qt::BlockingQueuedConnection);
+        }
     }
 
 private:

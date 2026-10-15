@@ -15,6 +15,7 @@
 #include "test_manage.hpp"
 #include "aging_test_manage.hpp"
 #include "log_extract_manage.hpp"
+#include "comm_debug_manage.hpp"
 
 #include <QQuickStyle>
 
@@ -49,10 +50,12 @@ int main(int argc, char *argv[]) {
     TestManage* mgr = TestManage::instance();
     AmingTestManage* agingMgr = AmingTestManage::instance();
     LogExtractManage* logExtractMgr = LogExtractManage::instance();
+    CommDebugManage* commDebugMgr = CommDebugManage::instance();
     engine.rootContext()->setContextProperty("rtModel", model);
     engine.rootContext()->setContextProperty("testManage", mgr);
     engine.rootContext()->setContextProperty("agingTestManage", agingMgr);
     engine.rootContext()->setContextProperty("logExtractManage", logExtractMgr);
+    engine.rootContext()->setContextProperty("commDebugManage", commDebugMgr);
     engine.rootContext()->setContextProperty("Config", Config::instance());
 
     QObject::connect(

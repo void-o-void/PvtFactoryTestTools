@@ -3,6 +3,7 @@
 //
 #include "test_manage.hpp"
 #include "aging_test_manage.hpp"
+#include "comm_debug_manage.hpp"
 
 // ==================== openSerial ====================
 void TestManage::openSerial() {
@@ -21,8 +22,8 @@ void TestManage::openSerial() {
     m_working = true;
     m_worker = std::thread([this]() {
         while (m_working) {
-            // 老化模式：休眠让出串口，由老化管理器独占通道
-            if (m_mode == TestMode::AGING) {
+            // 老化 / 通讯调试：休眠让出串口，由对应管理器独占通道
+            if (m_mode == TestMode::AGING || m_mode == TestMode::COMM_DEBUG) {
                 std::this_thread::sleep_for(std::chrono::seconds(2));
                 continue;
             }
@@ -44,6 +45,7 @@ void TestManage::openSerial() {
 void TestManage::switchToAging() {
     reset();                                          // 复位功能测试（m_mode→FUNC，停旧老化）
     AmingTestManage::instance()->reset();             // 确保旧老化 worker 已退出
+    CommDebugManage::instance()->release();
     m_mode = TestMode::AGING;                         // 设置老化模式（在 reset 之后）
     m_connect_protocol->wakeUpQueue();                // 唤醒功能 worker，下次循环睡觉
     AmingTestManage::instance()->takeOver(m_connect_protocol);
@@ -52,6 +54,7 @@ void TestManage::switchToAging() {
 // ==================== switchToFunctional ====================
 void TestManage::switchToFunctional() {
     AmingTestManage::instance()->reset();             // 停止老化 worker
+    CommDebugManage::instance()->release();
     m_connect_protocol->clearQueue();                 // 先清队列（此时 worker 还在 AGING 睡眠）
     m_mode = TestMode::FUNC;                          // 再切模式，worker 下次循环安全 pull
     reset();                                          // 功能测试 UI 回 Idle
@@ -60,10 +63,23 @@ void TestManage::switchToFunctional() {
 // ==================== switchToLogExtract ====================
 void TestManage::switchToLogExtract() {
     AmingTestManage::instance()->reset();
+    CommDebugManage::instance()->release();
     if (m_connect_protocol)
         m_connect_protocol->clearQueue();
     m_mode = TestMode::FUNC;
     reset();
+}
+
+// ==================== switchToCommDebug ====================
+void TestManage::switchToCommDebug() {
+    reset();
+    AmingTestManage::instance()->reset();
+    CommDebugManage::instance()->release();
+    m_mode = TestMode::COMM_DEBUG;
+    if (m_connect_protocol) {
+        m_connect_protocol->wakeUpQueue();
+        CommDebugManage::instance()->takeOver(m_connect_protocol);
+    }
 }
 
 // ==================== reset ====================

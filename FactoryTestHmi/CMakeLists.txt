@@ -29,6 +29,8 @@ file(GLOB SRC_LIST
         "process/factory_aging_test/*.cpp"
         "process/factory_log_extract/*.hpp"
         "process/factory_log_extract/*.cpp"
+        "process/factory_comm_debug/*.hpp"
+        "process/factory_comm_debug/*.cpp"
         "process/*.cpp"
         "common/*.hpp"
         "common/*.cpp"
@@ -42,6 +44,7 @@ include_directories(FactoryTestModule
         "process/factory_fun_test"
         "process/factory_aging_test"
         "process/factory_log_extract"
+        "process/factory_comm_debug"
 )
 
 target_link_libraries(FactoryTestModule PRIVATE
@@ -73,6 +76,7 @@ qt_add_qml_module(FactoryTestModule
             hmi/factory_aging_test/UiAgingTestCard.qml
             hmi/factory_aging_test/UiAgingTestRtLog.qml
             hmi/factory_log_extract/UiLogExtract.qml
+            hmi/factory_comm_debug/UiCommDebug.qml
         RESOURCES
             resources/pvt.png
             resources/ic_log_extract_all.png
@@ -81,13 +85,16 @@ qt_add_qml_module(FactoryTestModule
             resources/ic_log_folder.png
 )
 
-# 运行目录可直接读到 logcfg.json
+# 运行目录可直接读到 logcfg.json / handshake.json
 add_custom_command(TARGET FactoryTestModule POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:FactoryTestModule>/config"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "${CMAKE_CURRENT_SOURCE_DIR}/config/logcfg.json"
             "$<TARGET_FILE_DIR:FactoryTestModule>/config/logcfg.json"
-        COMMENT "Copying logcfg.json to output directory..."
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_CURRENT_SOURCE_DIR}/config/handshake.json"
+            "$<TARGET_FILE_DIR:FactoryTestModule>/config/handshake.json"
+        COMMENT "Copying config json to output directory..."
 )
 
 if(WIN32)

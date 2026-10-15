@@ -95,7 +95,7 @@ void AmingTestManage::reset() {
     // 队列清空由 takeOver() / start() 中的 clearQueue() 负责
 }
 
-#include <QFile>
+//#include <QFile>
 
 // ==================== pushHandshake ====================
 bool AmingTestManage::pushHandshake(bool &exit) {
@@ -127,10 +127,10 @@ bool AmingTestManage::pushHandshake(bool &exit) {
     m_uart_ch->push(msg);
 
 
-    QFile filep("");
-    if(filep.open(QIODevice::OpenModeFlag::Text)) {
-        msg.data = strdup(filep.readAll());
-    }
+    // QFile filep("");
+    // if(filep.open(QIODevice::OpenModeFlag::Text)) {
+    //     msg.data = strdup(filep.readAll());
+    // }
 
     emit logMessage("[OK] 发送握手，等待响应(2s)...");
 

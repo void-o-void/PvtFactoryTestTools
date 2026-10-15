@@ -86,6 +86,9 @@ public:
         return true;
     };
 
+    /** 清空已缓冲但尚未被协议线程取走的 RX 字节（默认空实现） */
+    virtual void clearRxBuffer() {}
+
 protected:
     int m_fd = -1;
     std::atomic_bool m_is_run{false};
